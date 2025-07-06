@@ -1,19 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
+// import 'package:provider/provider.dart'; // We'll add this back when we need it
 
-// TODO: We'll create these services in the next steps
-// import 'services/auth_service.dart';
-// import 'screens/auth/login_screen.dart';
-// import 'screens/main_navigation.dart';
-
-void main() async {
-  // Ensure Flutter binding is initialized before Firebase
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // TODO: Initialize Firebase (we'll configure this next)
-  // await Firebase.initializeApp();
-  
+void main() {
   runApp(const DriveLessApp());
 }
 
@@ -22,14 +10,9 @@ class DriveLessApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        // TODO: Add AuthService provider
-        // ChangeNotifierProvider(create: (_) => AuthService()),
-      ],
-      child: MaterialApp(
-        title: 'DriveLess',
-        debugShowCheckedModeBanner: false,
+    return MaterialApp(
+      title: 'DriveLess',
+      debugShowCheckedModeBanner: false,
         theme: ThemeData(
           // DriveLess brand colors - matching your iOS app
           primarySwatch: Colors.green,
@@ -67,7 +50,7 @@ class DriveLessApp extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // DriveLess logo/title
-                Text(
+                const Text(
                   'DriveLess',
                   style: TextStyle(
                     fontSize: 48,
@@ -75,19 +58,22 @@ class DriveLessApp extends StatelessWidget {
                     color: Color(0xFF2E7D32),
                   ),
                 ),
-                SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Flutter Version',
                   style: TextStyle(
                     fontSize: 18,
                     color: Colors.grey,
                   ),
                 ),
-                SizedBox(height: 32),
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text(
-                  'Setting up your route optimization app...',
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: null, // TODO: Add navigation
+                  child: const Text('Start Planning Routes'),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Flutter cross-platform version',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
