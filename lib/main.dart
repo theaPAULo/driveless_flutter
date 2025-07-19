@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+// Import our custom loading screen
+import 'screens/loading_screen.dart';
 
 void main() {
   runApp(const DriveLessApp());
@@ -13,88 +15,166 @@ class DriveLessApp extends StatelessWidget {
       title: 'DriveLess',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // DriveLess brand colors - matching your iOS app
         primarySwatch: Colors.green,
-        primaryColor: const Color(0xFF2E7D32), // Dark green
+        primaryColor: const Color(0xFF2E7D32), // Forest green from iOS
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2E7D32),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        
-        // App bar theme
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2E7D32),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        
-        // Elevated button theme
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2E7D32),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        ),
       ),
-      home: const WelcomeScreen(),
+      home: const ContentView(), // Main app controller (like iOS ContentView)
     );
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
+/// ContentView - Main app flow controller matching iOS structure
+/// 
+/// Manages the app flow exactly like iOS:
+/// 1. Show LoadingScreenView first
+/// 2. After loading -> check authentication
+/// 3. Show appropriate screen based on auth state
+class ContentView extends StatefulWidget {
+  const ContentView({super.key});
+
+  @override
+  State<ContentView> createState() => _ContentViewState();
+}
+
+class _ContentViewState extends State<ContentView> {
+  // Loading screen state (matching iOS)
+  bool _showLoadingScreen = true;
+  
+  // Authentication state (will be managed by Firebase later)
+  bool _isSignedIn = false; // Currently false, will connect to Firebase auth
+  
+  @override
+  Widget build(BuildContext context) {
+    // Main app flow logic (matching iOS ContentView)
+    if (_showLoadingScreen) {
+      // Show loading screen first
+      return LoadingScreenView(
+        onAnimationComplete: () {
+          // Callback when loading animation completes (matching iOS)
+          setState(() {
+            _showLoadingScreen = false;
+          });
+        },
+      );
+    } else if (_isSignedIn) {
+      // User is signed in - show main app (will implement MainTabView next)
+      return const MainAppView();
+    } else {
+      // User is not signed in - show sign-in screen (will implement next)
+      return const UltraCompactSignInView();
+    }
+  }
+}
+
+/// MainAppView - Placeholder for the main app (will become MainTabView)
+/// 
+/// This will be replaced with the full MainTabView in the next step
+class MainAppView extends StatelessWidget {
+  const MainAppView({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
+      backgroundColor: const Color(0xFF2E7D32),
+      body: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // DriveLess logo/title
-            const Text(
-              'DriveLess',
+            Icon(
+              Icons.check_circle,
+              size: 64,
+              color: Colors.white,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Main App View',
               style: TextStyle(
-                fontSize: 48,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2E7D32),
+                color: Colors.white,
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Flutter Version',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                // Show a snackbar when pressed
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Route planning coming soon!'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
-              child: const Text('Start Planning Routes'),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Flutter cross-platform version',
+            SizedBox(height: 8),
+            Text(
+              'MainTabView will go here',
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey,
+                color: Colors.white70,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// UltraCompactSignInView - Placeholder for sign-in screen
+/// 
+/// This will be replaced with Firebase authentication in the next step
+class UltraCompactSignInView extends StatelessWidget {
+  const UltraCompactSignInView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          // Matching the forest green gradient from iOS
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF224B22), // Deep forest
+              Color(0xFF2E7D32), // Primary green
+              Color(0xFF66523D), // Brown accent
+            ],
+          ),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Matching iOS hero section
+              Icon(
+                Icons.map_rounded,
+                size: 50,
+                color: Colors.white,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'DriveLess',
+                style: TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Drive Less, Save Time',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              SizedBox(height: 32),
+              Text(
+                'Sign-in functionality coming next...',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white60,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
