@@ -13,13 +13,33 @@ class DriveLessApp extends StatelessWidget {
       title: 'DriveLess',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        // DriveLess brand colors - matching your iOS app
         primarySwatch: Colors.green,
-        primaryColor: const Color(0xFF2E7D32),
+        primaryColor: const Color(0xFF2E7D32), // Dark green
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2E7D32),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        
+        // App bar theme
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2E7D32),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        
+        // Elevated button theme
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF2E7D32),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
       ),
       home: const WelcomeScreen(),
     );
@@ -36,6 +56,7 @@ class WelcomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // DriveLess logo/title
             const Text(
               'DriveLess',
               style: TextStyle(
@@ -54,13 +75,16 @@ class WelcomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-            onPressed: null, // Disabled until we add navigation
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            ),
-            child: const Text('Start Planning Routes'),
+              onPressed: () {
+                // Show a snackbar when pressed
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Route planning coming soon!'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              child: const Text('Start Planning Routes'),
             ),
             const SizedBox(height: 16),
             const Text(
