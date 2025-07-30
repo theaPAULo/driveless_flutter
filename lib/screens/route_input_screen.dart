@@ -10,6 +10,7 @@ import '../services/route_calculator_service.dart';
 import '../models/route_models.dart';
 import '../utils/constants.dart';
 import '../widgets/autocomplete_text_field.dart';
+import '../widgets/current_location_button.dart';
 
 class RouteInputScreen extends StatefulWidget {
   const RouteInputScreen({Key? key}) : super(key: key);
@@ -221,7 +222,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 _startLocationAddress = placeDetails.formattedAddress;
                 // Update end location if round trip is enabled
                 if (_isRoundTrip) {
-                  _endLocationController.text = placeDetails.formattedAddress;
+                  _endLocationController.text = placeDetails.name;
                   _endLocationAddress = placeDetails.formattedAddress;
                 }
               });
@@ -229,6 +230,22 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             onChanged: () {
               setState(() {
                 // Update button state when text changes
+              });
+            },
+          ),
+          
+          // "Use current location" button for start location (matches iOS)
+          CurrentLocationButton(
+            isVisible: _startLocationController.text.isEmpty,
+            onLocationSelected: (placeDetails) {
+              setState(() {
+                _startLocationController.text = placeDetails.name;
+                _startLocationAddress = placeDetails.formattedAddress;
+                // Update end location if round trip is enabled
+                if (_isRoundTrip) {
+                  _endLocationController.text = placeDetails.name;
+                  _endLocationAddress = placeDetails.formattedAddress;
+                }
               });
             },
           ),
@@ -257,6 +274,17 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             onChanged: () {
               setState(() {
                 // Update button state when text changes
+              });
+            },
+          ),
+          
+          // "Use current location" button for destination (matches iOS)
+          CurrentLocationButton(
+            isVisible: _endLocationController.text.isEmpty && !_isRoundTrip,
+            onLocationSelected: (placeDetails) {
+              setState(() {
+                _endLocationController.text = placeDetails.name;
+                _endLocationAddress = placeDetails.formattedAddress;
               });
             },
           ),
@@ -306,55 +334,74 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // MARK: - Individual Stop Field with Autocomplete
   Widget _buildStopField({required int index}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          // Stop autocomplete field
-          Expanded(
-            child: AutocompleteTextField(
-              controller: _stopControllers[index],
-              hint: 'Stop ${index + 1}',
-              icon: Icons.location_on,
-              iconColor: Colors.orange,
-              onPlaceSelected: (placeDetails) {
-                setState(() {
-                  // Ensure the addresses list is big enough
-                  while (_stopAddresses.length <= index) {
-                    _stopAddresses.add('');
-                  }
-                  _stopAddresses[index] = placeDetails.formattedAddress;
-                });
-              },
-              onChanged: () {
-                setState(() {
-                  // Update button state when text changes
-                });
-              },
-            ),
-          ),
-          
-          const SizedBox(width: 8),
-          
-          // Remove stop button
-          GestureDetector(
-            onTap: () => _removeStop(index),
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: Colors.grey[700],
-                borderRadius: BorderRadius.circular(16),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              // Stop autocomplete field
+              Expanded(
+                child: AutocompleteTextField(
+                  controller: _stopControllers[index],
+                  hint: 'Stop ${index + 1}',
+                  icon: Icons.location_on,
+                  iconColor: Colors.orange,
+                  onPlaceSelected: (placeDetails) {
+                    setState(() {
+                      // Ensure the addresses list is big enough
+                      while (_stopAddresses.length <= index) {
+                        _stopAddresses.add('');
+                      }
+                      _stopAddresses[index] = placeDetails.formattedAddress;
+                    });
+                  },
+                  onChanged: () {
+                    setState(() {
+                      // Update button state when text changes
+                    });
+                  },
+                ),
               ),
-              child: const Icon(
-                Icons.close,
-                color: Colors.white,
-                size: 16,
+              
+              const SizedBox(width: 8),
+              
+              // Remove stop button
+              GestureDetector(
+                onTap: () => _removeStop(index),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[700],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        
+        // "Use current location" button for this stop (matches iOS)
+        CurrentLocationButton(
+          isVisible: _stopControllers[index].text.isEmpty,
+          onLocationSelected: (placeDetails) {
+            setState(() {
+              _stopControllers[index].text = placeDetails.name;
+              // Ensure the addresses list is big enough
+              while (_stopAddresses.length <= index) {
+                _stopAddresses.add('');
+              }
+              _stopAddresses[index] = placeDetails.formattedAddress;
+            });
+          },
+        ),
+      ],
     );
   }
 
