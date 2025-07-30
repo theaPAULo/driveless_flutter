@@ -1,12 +1,12 @@
 // lib/main.dart
 //
 // Main app entry point for DriveLess Flutter app
-// Updated to include API testing functionality
+// Clean version ready for production route input screen
 
 import 'package:flutter/material.dart';
 
-// Import our test screen (TEMPORARY - remove after testing)
-import 'test_route_api.dart';
+// Import our screens
+import 'screens/route_input_screen.dart';
 
 void main() {
   runApp(const DriveLessApp());
@@ -49,138 +49,43 @@ class DriveLessApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const WelcomeScreen(),
-    );
-  }
-}
-
-class WelcomeScreen extends StatelessWidget {
-  const WelcomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // DriveLess logo/title
-            const Text(
-              'DriveLess',
-              style: TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2E7D32),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Flutter Version',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(height: 32),
-            
-            // TEMPORARY: API Test Button (remove after testing)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              child: Column(
-                children: [
-                  // Test API Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const TestRouteApi(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.science),
-                      label: const Text('Test Route API'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50), // Lighter green for test
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Original app functionality button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Show a snackbar when pressed
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Route planning coming soon!'),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      child: const Text('Start Planning Routes'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            
-            // Development notice
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 40),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                border: Border.all(color: Colors.amber.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Column(
-                children: [
-                  Icon(
-                    Icons.construction,
-                    color: Colors.amber,
-                    size: 20,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Development Mode',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.amber,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Use "Test Route API" to verify Google Directions integration',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            const Text(
-              'Flutter cross-platform version',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ],
+      
+      // Dark theme to match your iOS app
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.green,
+        primaryColor: const Color(0xFF2E7D32),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2E7D32),
+          brightness: Brightness.dark,
         ),
+        useMaterial3: true,
+        
+        // Dark mode app bar
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1B1B1B),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        
+        // Dark mode card theme - FIXED: CardThemeData instead of CardTheme
+        cardTheme: const CardThemeData(
+          color: Color(0xFF2C2C2E),
+          elevation: 8,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(16)),
+          ),
+        ),
+        
+        // Dark mode background
+        scaffoldBackgroundColor: const Color(0xFF000000),
       ),
+      
+      // Use dark theme by default to match your iOS app
+      themeMode: ThemeMode.dark,
+      
+      // Navigate directly to route input screen
+      home: const RouteInputScreen(),
     );
   }
 }
