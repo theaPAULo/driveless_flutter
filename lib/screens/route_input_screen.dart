@@ -1,14 +1,15 @@
 // lib/screens/route_input_screen.dart
 //
-// Main route planning interface - converted from SwiftUI RouteInputView
-// Matches the design and functionality of your iOS app
+// Main route planning interface with Google Places autocomplete
+// Updated to use smart address input fields
 
 import 'package:flutter/material.dart';
 
-// Import our services and models
+// Import our services, models, and widgets
 import '../services/route_calculator_service.dart';
 import '../models/route_models.dart';
 import '../utils/constants.dart';
+import '../widgets/autocomplete_text_field.dart';
 
 class RouteInputScreen extends StatefulWidget {
   const RouteInputScreen({Key? key}) : super(key: key);
@@ -27,6 +28,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   bool _isRoundTrip = false;
   bool _considerTraffic = true;
   bool _isOptimizing = false;
+
+  // Store actual addresses for API calls (may differ from display names)
+  String _startLocationAddress = '';
+  String _endLocationAddress = '';
+  List<String> _stopAddresses = [''];
 
   // MARK: - Services
   final RouteCalculatorService _routeService = RouteCalculatorService();
@@ -204,12 +210,27 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       ),
       child: Column(
         children: [
-          // Start location field
-          _buildLocationField(
+          // Start location field with autocomplete
+          AutocompleteTextField(
             controller: _startLocationController,
             hint: 'Starting location',
             icon: Icons.radio_button_checked,
             iconColor: const Color(0xFF2E7D32),
+            onPlaceSelected: (placeDetails) {
+              setState(() {
+                _startLocationAddress = placeDetails.formattedAddress;
+                // Update end location if round trip is enabled
+                if (_isRoundTrip) {
+                  _endLocationController.text = placeDetails.formattedAddress;
+                  _endLocationAddress = placeDetails.formattedAddress;
+                }
+              });
+            },
+            onChanged: () {
+              setState(() {
+                // Update button state when text changes
+              });
+            },
           ),
           
           // Connector line
@@ -221,84 +242,23 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           // Another connector line (if there are stops)
           if (_stopControllers.isNotEmpty) _buildConnectorLine(),
           
-          // Destination field
-          _buildLocationField(
+          // Destination field with autocomplete
+          AutocompleteTextField(
             controller: _endLocationController,
             hint: _isRoundTrip ? 'Return to start' : 'Destination',
             icon: Icons.flag,
             iconColor: const Color(0xFF2E7D32),
             enabled: !_isRoundTrip,
-          ),
-        ],
-      ),
-    );
-  }
-
-  // MARK: - Location Field Widget
-  Widget _buildLocationField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required Color iconColor,
-    bool enabled = true,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 16,
-            ),
-          ),
-          
-          const SizedBox(width: 12),
-          
-          // Text field
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: enabled ? const Color(0xFF3A3A3C) : const Color(0xFF3A3A3C).withOpacity(0.5),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF48484A),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: controller,
-                enabled: enabled,
-                style: TextStyle(
-                  color: enabled ? Colors.white : Colors.grey[500],
-                  fontSize: 16,
-                ),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 16,
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-                onChanged: (value) {
-                  setState(() {
-                    // Update UI when text changes
-                  });
-                },
-              ),
-            ),
+            onPlaceSelected: (placeDetails) {
+              setState(() {
+                _endLocationAddress = placeDetails.formattedAddress;
+              });
+            },
+            onChanged: () {
+              setState(() {
+                // Update button state when text changes
+              });
+            },
           ),
         ],
       ),
@@ -344,58 +304,33 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return stopWidgets;
   }
 
-  // MARK: - Individual Stop Field
+  // MARK: - Individual Stop Field with Autocomplete
   Widget _buildStopField({required int index}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          // Stop icon
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.location_on,
-              color: Colors.orange,
-              size: 16,
-            ),
-          ),
-          
-          const SizedBox(width: 12),
-          
-          // Stop text field
+          // Stop autocomplete field
           Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF3A3A3C),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF48484A),
-                  width: 1,
-                ),
-              ),
-              child: TextField(
-                controller: _stopControllers[index],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Stop ${index + 1}',
-                  hintStyle: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 16,
-                  ),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
+            child: AutocompleteTextField(
+              controller: _stopControllers[index],
+              hint: 'Stop ${index + 1}',
+              icon: Icons.location_on,
+              iconColor: Colors.orange,
+              onPlaceSelected: (placeDetails) {
+                setState(() {
+                  // Ensure the addresses list is big enough
+                  while (_stopAddresses.length <= index) {
+                    _stopAddresses.add('');
+                  }
+                  _stopAddresses[index] = placeDetails.formattedAddress;
+                });
+              },
+              onChanged: () {
+                setState(() {
+                  // Update button state when text changes
+                });
+              },
             ),
           ),
           
@@ -487,10 +422,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             onChanged: (value) {
               setState(() {
                 _isRoundTrip = value;
-                if (_isRoundTrip) {
+                if (_isRoundTrip && _startLocationController.text.isNotEmpty) {
                   _endLocationController.text = _startLocationController.text;
+                  _endLocationAddress = _startLocationAddress;
                 } else {
                   _endLocationController.clear();
+                  _endLocationAddress = '';
                 }
               });
             },
@@ -661,6 +598,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   void _addStop() {
     setState(() {
       _stopControllers.add(TextEditingController());
+      _stopAddresses.add('');
     });
   }
 
@@ -668,6 +606,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     setState(() {
       _stopControllers[index].dispose();
       _stopControllers.removeAt(index);
+      if (index < _stopAddresses.length) {
+        _stopAddresses.removeAt(index);
+      }
     });
   }
 
@@ -679,25 +620,41 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
 
     try {
-      // Collect route inputs
-      final String startLocation = _startLocationController.text.trim();
+      // Use the formatted addresses from autocomplete
+      final String startLocation = _startLocationAddress.isNotEmpty 
+          ? _startLocationAddress 
+          : _startLocationController.text.trim();
+      
       final String endLocation = _isRoundTrip 
           ? startLocation 
-          : _endLocationController.text.trim();
+          : (_endLocationAddress.isNotEmpty 
+              ? _endLocationAddress 
+              : _endLocationController.text.trim());
       
-      final List<String> stops = _stopControllers
-          .where((controller) => controller.text.trim().isNotEmpty)
-          .map((controller) => controller.text.trim())
-          .toList();
+      // Collect valid stops
+      final List<String> stops = [];
+      for (int i = 0; i < _stopControllers.length; i++) {
+        final stopText = _stopControllers[i].text.trim();
+        if (stopText.isNotEmpty) {
+          // Use formatted address if available, otherwise use user input
+          final stopAddress = (i < _stopAddresses.length && _stopAddresses[i].isNotEmpty)
+              ? _stopAddresses[i]
+              : stopText;
+          stops.add(stopAddress);
+        }
+      }
 
       // Create original inputs for display names
       final originalInputs = OriginalRouteInputs(
         startLocation: startLocation,
         endLocation: endLocation,
         stops: stops,
-        startLocationDisplayName: startLocation,
-        endLocationDisplayName: endLocation,
-        stopDisplayNames: stops,
+        startLocationDisplayName: _startLocationController.text.trim(),
+        endLocationDisplayName: _endLocationController.text.trim(),
+        stopDisplayNames: _stopControllers
+            .map((controller) => controller.text.trim())
+            .where((text) => text.isNotEmpty)
+            .toList(),
       );
 
       // Calculate optimized route
