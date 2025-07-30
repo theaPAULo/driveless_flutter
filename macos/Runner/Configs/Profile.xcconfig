@@ -1,0 +1,4 @@
+// Profile configuration  
+MACOSX_DEPLOYMENT_TARGET = 10.15
+#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"
+#include "AppInfo.xcconfig"
