@@ -77,16 +77,16 @@ class RouteResultsScreen extends StatelessWidget {
     );
   }
 
-  // MARK: - Summary Card (White card matching iOS exactly)
+  // MARK: - Summary Card (Dark theme card)
   Widget _buildSummaryCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,  // White background like iOS
+        color: const Color(0xFF2C2C2E),  // Dark theme background
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -99,7 +99,7 @@ class RouteResultsScreen extends StatelessWidget {
           const Text(
             'Summary',
             style: TextStyle(
-              color: Colors.black,
+              color: Colors.white,  // White text for dark theme
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -124,7 +124,7 @@ class RouteResultsScreen extends StatelessWidget {
               Container(
                 width: 1,
                 height: 60,
-                color: Colors.grey[300],
+                color: Colors.grey[600],  // Darker gray for dark theme
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               
@@ -142,7 +142,7 @@ class RouteResultsScreen extends StatelessWidget {
               Container(
                 width: 1,
                 height: 60,
-                color: Colors.grey[300],
+                color: Colors.grey[600],  // Darker gray for dark theme  
                 margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
               
@@ -192,7 +192,7 @@ class RouteResultsScreen extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: Colors.black,
+            color: Colors.white,  // White text for dark theme
             fontSize: 32,
             fontWeight: FontWeight.bold,
           ),
@@ -204,7 +204,7 @@ class RouteResultsScreen extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Colors.grey[400],  // Light gray for dark theme
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
