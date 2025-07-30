@@ -11,6 +11,7 @@ import '../models/route_models.dart';
 import '../utils/constants.dart';
 import '../widgets/autocomplete_text_field.dart';
 import '../widgets/current_location_button.dart';
+import 'route_results_screen.dart';
 
 class RouteInputScreen extends StatefulWidget {
   const RouteInputScreen({Key? key}) : super(key: key);
@@ -712,15 +713,15 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         originalInputs: originalInputs,
       );
 
-      // Show success message for now (later we'll navigate to results screen)
+      // Navigate to results screen instead of showing snackbar
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Route optimized! Distance: ${result.totalDistance}, Time: ${result.estimatedTime}',
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RouteResultsScreen(
+              routeResult: result,
+              originalInputs: originalInputs,
             ),
-            backgroundColor: const Color(0xFF2E7D32),
-            duration: const Duration(seconds: 3),
           ),
         );
       }
