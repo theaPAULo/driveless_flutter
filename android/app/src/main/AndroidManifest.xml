@@ -7,6 +7,9 @@
         android:label="driveless_flutter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyCancy_vwbDbYZavxDjtpL7NW4lYl8Tkmk" />
+        
         <activity
             android:name=".MainActivity"
             android:exported="true"

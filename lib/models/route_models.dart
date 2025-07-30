@@ -91,6 +91,8 @@ class OriginalRouteInputs {
   final String startLocationDisplayName;
   final String endLocationDisplayName;
   final List<String> stopDisplayNames;
+  final bool includeTraffic;  // ADDED: Traffic setting
+  final bool isRoundTrip;     // ADDED: Round trip setting
 
   OriginalRouteInputs({
     required this.startLocation,
@@ -99,6 +101,8 @@ class OriginalRouteInputs {
     required this.startLocationDisplayName,
     required this.endLocationDisplayName,
     required this.stopDisplayNames,
+    this.includeTraffic = false,  // Default to false
+    this.isRoundTrip = false,     // Default to false
   });
 
   Map<String, dynamic> toJson() {
@@ -109,6 +113,8 @@ class OriginalRouteInputs {
       'startLocationDisplayName': startLocationDisplayName,
       'endLocationDisplayName': endLocationDisplayName,
       'stopDisplayNames': stopDisplayNames,
+      'includeTraffic': includeTraffic,
+      'isRoundTrip': isRoundTrip,
     };
   }
 
@@ -120,6 +126,8 @@ class OriginalRouteInputs {
       startLocationDisplayName: json['startLocationDisplayName'] ?? '',
       endLocationDisplayName: json['endLocationDisplayName'] ?? '',
       stopDisplayNames: List<String>.from(json['stopDisplayNames'] ?? []),
+      includeTraffic: json['includeTraffic'] ?? false,
+      isRoundTrip: json['isRoundTrip'] ?? false,
     );
   }
 }

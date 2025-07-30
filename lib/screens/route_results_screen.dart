@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../models/route_models.dart';
 import '../utils/constants.dart';
+import '../widgets/route_map_widget.dart';  // Import the new map widget
 
 class RouteResultsScreen extends StatelessWidget {
   final OptimizedRouteResult routeResult;
@@ -230,86 +231,10 @@ class RouteResultsScreen extends StatelessWidget {
         
         const SizedBox(height: 16),
         
-        // Map container (placeholder for now - will add Google Maps later)
-        Container(
-          height: 300,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.grey[800]!,
-              width: 1,
-            ),
-          ),
-          child: Stack(
-            children: [
-              // Map placeholder background
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF2C2C2E),
-                      const Color(0xFF1C1C1E),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Google Maps placeholder text
-              const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.map,
-                      color: Colors.grey,
-                      size: 48,
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Google Maps Integration',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      '(Coming in next update)',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Traffic button overlay (top right)
-              Positioned(
-                top: 16,
-                right: 16,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Traffic',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        // Real Google Maps integration
+        RouteMapWidget(
+          routeResult: routeResult,
+          showTraffic: originalInputs.includeTraffic, // Use traffic setting from input
         ),
       ],
     );
