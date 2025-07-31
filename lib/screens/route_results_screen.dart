@@ -2,6 +2,7 @@
 //
 // Route results display screen - EXACT iOS App Design Match
 // Shows optimized route with Summary card, Route Map, and Your Path sections
+// Now with functional traffic toggle and route polylines
 
 import 'package:flutter/material.dart';
 
@@ -9,7 +10,7 @@ import '../models/route_models.dart';
 import '../utils/constants.dart';
 import '../widgets/route_map_widget.dart';  // Import the new map widget
 
-class RouteResultsScreen extends StatelessWidget {
+class RouteResultsScreen extends StatefulWidget {
   final OptimizedRouteResult routeResult;
   final OriginalRouteInputs originalInputs;
 
@@ -18,6 +19,20 @@ class RouteResultsScreen extends StatelessWidget {
     required this.routeResult,
     required this.originalInputs,
   }) : super(key: key);
+
+  @override
+  State<RouteResultsScreen> createState() => _RouteResultsScreenState();
+}
+
+class _RouteResultsScreenState extends State<RouteResultsScreen> {
+  bool _trafficEnabled = false; // Traffic toggle state
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize traffic state from original inputs
+    _trafficEnabled = widget.originalInputs.includeTraffic;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +131,7 @@ class RouteResultsScreen extends StatelessWidget {
                 child: _buildSummaryMetric(
                   icon: Icons.straighten,
                   iconColor: const Color(0xFF34C759), // iOS green
-                  value: routeResult.totalDistance,
+                  value: widget.routeResult.totalDistance,
                   label: 'Distance',
                 ),
               ),
@@ -134,7 +149,7 @@ class RouteResultsScreen extends StatelessWidget {
                 child: _buildSummaryMetric(
                   icon: Icons.access_time,
                   iconColor: const Color(0xFFFF9500), // iOS orange
-                  value: routeResult.estimatedTime,
+                  value: widget.routeResult.estimatedTime,
                   label: 'Time',
                 ),
               ),
@@ -152,7 +167,7 @@ class RouteResultsScreen extends StatelessWidget {
                 child: _buildSummaryMetric(
                   icon: Icons.location_on,
                   iconColor: const Color(0xFF999999), // iOS gray
-                  value: '${routeResult.optimizedStops.length}',
+                  value: '${widget.routeResult.optimizedStops.length}',
                   label: 'Stops',
                 ),
               ),
@@ -231,10 +246,15 @@ class RouteResultsScreen extends StatelessWidget {
         
         const SizedBox(height: 16),
         
-        // Real Google Maps integration
+        // Real Google Maps integration with traffic state management
         RouteMapWidget(
-          routeResult: routeResult,
-          showTraffic: originalInputs.includeTraffic, // Use traffic setting from input
+          routeResult: widget.routeResult,
+          initialTrafficEnabled: _trafficEnabled,
+          onTrafficToggled: (bool enabled) {
+            setState(() {
+              _trafficEnabled = enabled;
+            });
+          },
         ),
       ],
     );
@@ -268,11 +288,11 @@ class RouteResultsScreen extends StatelessWidget {
         const SizedBox(height: 16),
         
         // Route stops list
-        ...routeResult.optimizedStops.asMap().entries.map((entry) {
+        ...widget.routeResult.optimizedStops.asMap().entries.map((entry) {
           final index = entry.key;
           final stop = entry.value;
           final isFirst = index == 0;
-          final isLast = index == routeResult.optimizedStops.length - 1;
+          final isLast = index == widget.routeResult.optimizedStops.length - 1;
           
           return _buildPathStopItem(
             stop: stop,
@@ -367,7 +387,7 @@ class RouteResultsScreen extends StatelessWidget {
                 ),
                 
                 // Distance and time to next stop (if not last)
-                if (!isLast && index < routeResult.legs.length) ...[
+                if (!isLast && index < widget.routeResult.legs.length) ...[
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -378,7 +398,7 @@ class RouteResultsScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        routeResult.legs[index].distance.text,
+                        widget.routeResult.legs[index].distance.text,
                         style: TextStyle(
                           color: Colors.grey[500],
                           fontSize: 12,
@@ -393,7 +413,7 @@ class RouteResultsScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        routeResult.legs[index].duration.text,
+                        widget.routeResult.legs[index].duration.text,
                         style: TextStyle(
                           color: Colors.grey[500],
                           fontSize: 12,

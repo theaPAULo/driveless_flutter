@@ -1,7 +1,7 @@
 // lib/widgets/route_map_widget.dart
 //
 // Interactive Google Maps widget for displaying optimized routes
-// Shows numbered markers for stops (polylines will be added in next version)
+// Shows numbered markers, route polylines, and functional traffic toggle
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -9,15 +9,18 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import '../models/route_models.dart';
+import '../utils/polyline_decoder.dart';
 
 class RouteMapWidget extends StatefulWidget {
   final OptimizedRouteResult routeResult;
-  final bool showTraffic;
+  final bool initialTrafficEnabled;
+  final Function(bool)? onTrafficToggled; // Callback for traffic state changes
   
   const RouteMapWidget({
     Key? key,
     required this.routeResult,
-    this.showTraffic = false,
+    this.initialTrafficEnabled = false,
+    this.onTrafficToggled,
   }) : super(key: key);
 
   @override
@@ -27,12 +30,26 @@ class RouteMapWidget extends StatefulWidget {
 class _RouteMapWidgetState extends State<RouteMapWidget> {
   GoogleMapController? _mapController;
   Set<Marker> _markers = {};
+  Set<Polyline> _polylines = {};
   bool _isMapReady = false;
+  bool _trafficEnabled = false; // Internal traffic state
 
   @override
   void initState() {
     super.initState();
-    _createMarkers();
+    _trafficEnabled = widget.initialTrafficEnabled;
+    _createMarkersAndPolylines();
+  }
+
+  @override
+  void didUpdateWidget(RouteMapWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update traffic state if changed externally
+    if (oldWidget.initialTrafficEnabled != widget.initialTrafficEnabled) {
+      setState(() {
+        _trafficEnabled = widget.initialTrafficEnabled;
+      });
+    }
   }
 
   @override
@@ -56,7 +73,8 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
               initialCameraPosition: _getInitialCameraPosition(),
               onMapCreated: _onMapCreated,
               markers: _markers,
-              trafficEnabled: widget.showTraffic,
+              polylines: _polylines,
+              trafficEnabled: _trafficEnabled, // Use internal state
               mapType: MapType.normal,
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
@@ -71,32 +89,21 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
               top: 16,
               right: 16,
               child: GestureDetector(
-                onTap: () {
-                  // TODO: Toggle traffic (will implement state management)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        widget.showTraffic ? 'Traffic disabled' : 'Traffic enabled',
-                      ),
-                      backgroundColor: const Color(0xFF34C759),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
+                onTap: _toggleTraffic,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: widget.showTraffic ? const Color(0xFF34C759) : Colors.grey,
+                      color: _trafficEnabled ? const Color(0xFF34C759) : Colors.grey,
                       width: 1,
                     ),
                   ),
                   child: Text(
                     'Traffic',
                     style: TextStyle(
-                      color: widget.showTraffic ? const Color(0xFF34C759) : Colors.white,
+                      color: _trafficEnabled ? const Color(0xFF34C759) : Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -134,6 +141,27 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
     );
   }
 
+  // MARK: - Traffic Toggle Functionality
+  void _toggleTraffic() {
+    setState(() {
+      _trafficEnabled = !_trafficEnabled;
+    });
+    
+    // Notify parent component of traffic state change
+    widget.onTrafficToggled?.call(_trafficEnabled);
+    
+    // Show feedback to user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _trafficEnabled ? 'Traffic overlay enabled' : 'Traffic overlay disabled',
+        ),
+        backgroundColor: const Color(0xFF34C759),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   // MARK: - Map Initialization
   void _onMapCreated(GoogleMapController controller) {
     _mapController = controller;
@@ -160,6 +188,12 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
       target: LatLng(29.7604, -95.3698), // Houston coordinates
       zoom: 10.0,
     );
+  }
+
+  // MARK: - Create Markers and Polylines
+  Future<void> _createMarkersAndPolylines() async {
+    await _createMarkers();
+    _createPolylines();
   }
 
   // MARK: - Create Custom Numbered Markers
@@ -269,6 +303,57 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
     );
     
     return BitmapDescriptor.fromBytes(byteData!.buffer.asUint8List());
+  }
+
+  // MARK: - Create Route Polylines
+  void _createPolylines() {
+    Set<Polyline> polylines = {};
+    
+    try {
+      // Use overview polyline if available for single route line
+      if (widget.routeResult.routePolyline != null && 
+          widget.routeResult.routePolyline!.isNotEmpty) {
+        
+        final points = PolylineDecoder.decodePolyline(widget.routeResult.routePolyline!);
+        if (points.isNotEmpty) {
+          polylines.add(
+            Polyline(
+              polylineId: const PolylineId('route_overview'),
+              points: points,
+              color: const Color(0xFF007AFF), // iOS blue
+              width: 4,
+              patterns: [], // Solid line
+            ),
+          );
+        }
+      } else {
+        // Create polylines for each leg if no overview polyline
+        for (int i = 0; i < widget.routeResult.legs.length; i++) {
+          final leg = widget.routeResult.legs[i];
+          
+          // Create a simple line between start and end points of each leg
+          polylines.add(
+            Polyline(
+              polylineId: PolylineId('route_leg_$i'),
+              points: [
+                LatLng(leg.startLocation.lat, leg.startLocation.lng),
+                LatLng(leg.endLocation.lat, leg.endLocation.lng),
+              ],
+              color: const Color(0xFF007AFF), // iOS blue
+              width: 4,
+              patterns: [], // Solid line
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error creating polylines: $e');
+      // Continue without polylines if there's an error
+    }
+    
+    setState(() {
+      _polylines = polylines;
+    });
   }
 
   // MARK: - Fit Map to Show All Markers
