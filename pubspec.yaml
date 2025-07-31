@@ -33,6 +33,9 @@ dependencies:
   # Utilities  
   shared_preferences: ^2.2.2
   uuid: ^4.2.1
+  
+  # UUID for generating unique route IDs
+  # (uuid package is already listed above)
 
 dev_dependencies:
   flutter_test:

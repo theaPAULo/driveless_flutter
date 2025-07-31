@@ -2,14 +2,16 @@
 //
 // Route results display screen - EXACT iOS App Design Match
 // Shows optimized route with Summary card, Route Map, and Your Path sections
-// Now with functional traffic toggle, route polylines, and Google Maps export
+// Now with functional traffic toggle, route polylines, Google Maps export, and Save Route
 
 import 'package:flutter/material.dart';
 
 import '../models/route_models.dart';
+import '../models/saved_route_model.dart';
 import '../utils/constants.dart';
 import '../widgets/route_map_widget.dart';
-import '../services/google_maps_export_service.dart';  // Import export service
+import '../services/google_maps_export_service.dart';
+import '../services/route_storage_service.dart';  // Import storage service
 
 class RouteResultsScreen extends StatefulWidget {
   final OptimizedRouteResult routeResult;
@@ -27,12 +29,32 @@ class RouteResultsScreen extends StatefulWidget {
 
 class _RouteResultsScreenState extends State<RouteResultsScreen> {
   bool _trafficEnabled = false; // Traffic toggle state
+  bool _isRouteSaved = false; // Track if route is saved
+  bool _isSaving = false; // Track saving state
+  SavedRoute? _savedRoute; // Reference to saved route if exists
 
   @override
   void initState() {
     super.initState();
     // Initialize traffic state from original inputs
     _trafficEnabled = widget.originalInputs.includeTraffic;
+    // Check if route is already saved
+    _checkIfRouteSaved();
+  }
+
+  /// Check if current route is already saved
+  Future<void> _checkIfRouteSaved() async {
+    try {
+      final SavedRoute? existingRoute = await RouteStorageService.findSimilarRoute(widget.routeResult);
+      if (mounted) {
+        setState(() {
+          _isRouteSaved = existingRoute != null;
+          _savedRoute = existingRoute;
+        });
+      }
+    } catch (e) {
+      print('Error checking saved route: $e');
+    }
   }
 
   @override
@@ -178,6 +200,104 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+  
+  // MARK: - Save Route Functionality
+  Future<void> _saveRoute(BuildContext context) async {
+    if (_isRouteSaved) {
+      // Show route already saved message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Route "${_savedRoute?.name ?? 'Unknown'}" is already saved'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF007AFF), // iOS blue
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      // Save the route
+      final SavedRoute savedRoute = await RouteStorageService.saveRoute(
+        routeResult: widget.routeResult,
+        originalInputs: widget.originalInputs,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isRouteSaved = true;
+          _savedRoute = savedRoute;
+          _isSaving = false;
+        });
+
+        // Show success feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Route saved as "${savedRoute.name}"'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF34C759),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'VIEW',
+              textColor: Colors.white,
+              onPressed: () {
+                // TODO: Navigate to saved routes list (future feature)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Saved routes view coming soon!'),
+                    backgroundColor: Color(0xFF007AFF),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        // Show error feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Failed to save route: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFFF3B30), // iOS red
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -558,34 +678,39 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
                 height: 50,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Colors.white,
+                    color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
                     width: 1.5,
                   ),
                   borderRadius: BorderRadius.circular(25),
+                  color: _isRouteSaved ? const Color(0xFF34C759).withOpacity(0.1) : null,
                 ),
                 child: TextButton(
-                  onPressed: () {
-                    // TODO: Implement save route functionality
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Save Route functionality coming soon!'),
-                        backgroundColor: Color(0xFF34C759),
-                      ),
-                    );
-                  },
+                  onPressed: _isSaving ? null : () => _saveRoute(context),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.favorite_border,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Save Route',
+                      if (_isSaving) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ] else ...[
+                        Icon(
+                          _isRouteSaved ? Icons.favorite : Icons.favorite_border,
+                          color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _isRouteSaved ? 'Saved' : 'Save Route',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -635,4 +760,4 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       ),
     );
   }
-}q
+}
