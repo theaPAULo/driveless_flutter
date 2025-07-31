@@ -27,6 +27,9 @@ dependencies:
   geolocator: ^10.1.0
   permission_handler: ^11.1.0
   
+  # URL Launcher for Google Maps export
+  url_launcher: ^6.2.2  # ADDED: For opening Google Maps
+  
   # Utilities  
   shared_preferences: ^2.2.2
   uuid: ^4.2.1

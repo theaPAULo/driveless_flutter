@@ -2,13 +2,14 @@
 //
 // Route results display screen - EXACT iOS App Design Match
 // Shows optimized route with Summary card, Route Map, and Your Path sections
-// Now with functional traffic toggle and route polylines
+// Now with functional traffic toggle, route polylines, and Google Maps export
 
 import 'package:flutter/material.dart';
 
 import '../models/route_models.dart';
 import '../utils/constants.dart';
-import '../widgets/route_map_widget.dart';  // Import the new map widget
+import '../widgets/route_map_widget.dart';
+import '../services/google_maps_export_service.dart';  // Import export service
 
 class RouteResultsScreen extends StatefulWidget {
   final OptimizedRouteResult routeResult;
@@ -91,6 +92,93 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         ],
       ),
     );
+  }
+  
+  // MARK: - Google Maps Export Functionality
+  Future<void> _exportToGoogleMaps(BuildContext context) async {
+    // Show loading indicator
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Opening Google Maps...'),
+          ],
+        ),
+        backgroundColor: Color(0xFF34C759),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    try {
+      // Export route to Google Maps
+      final bool success = await GoogleMapsExportService.exportRouteToGoogleMaps(
+        routeResult: widget.routeResult,
+        originalInputs: widget.originalInputs,
+      );
+      
+      if (success) {
+        // Success feedback
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Route opened in Google Maps!'),
+              ],
+            ),
+            backgroundColor: Color(0xFF34C759),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Error feedback
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('Could not open Google Maps. Please install the app or try again.'),
+                ),
+              ],
+            ),
+            backgroundColor: Color(0xFFFF3B30), // iOS red
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Exception handling
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Error opening Google Maps: ${e.toString()}'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFFF3B30), // iOS red
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   // MARK: - Summary Card (Dark theme card)
@@ -519,15 +607,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: TextButton(
-                  onPressed: () {
-                    // TODO: Open route in Google Maps
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Opening in Google Maps...'),
-                        backgroundColor: Color(0xFF34C759),
-                      ),
-                    );
-                  },
+                  onPressed: () => _exportToGoogleMaps(context),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -555,4 +635,4 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       ),
     );
   }
-}
+}q
