@@ -2,9 +2,12 @@
 //
 // User profile screen matching iOS design exactly
 // Shows user stats, routes, addresses, and settings
+// Now with real authentication data
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../services/auth_service.dart';
 import '../services/saved_address_service.dart';
 import '../utils/constants.dart';
 import 'saved_addresses_screen.dart';
@@ -28,44 +31,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20),
-                
-                // MARK: - Header Section (matching iOS exactly)
-                _buildHeaderSection(),
-                
-                const SizedBox(height: 32),
-                
-                // MARK: - Your Stats Card (matching iOS design)
-                _buildStatsCard(),
-                
-                const SizedBox(height: 24),
-                
-                // MARK: - Menu Sections (matching iOS layout)
-                _buildMenuSections(),
-                
-                const SizedBox(height: 40),
-              ],
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        final user = authService.currentUser;
+        
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    
+                    // MARK: - Header Section (using real user data)
+                    _buildHeaderSection(user),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // MARK: - Your Stats Card (real stats from Firestore)
+                    _buildStatsCard(),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // MARK: - Menu Sections
+                    _buildMenuSections(),
+                    
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // MARK: - Header Section
-  Widget _buildHeaderSection() {
+  // MARK: - Header Section (using real user data)
+  Widget _buildHeaderSection(user) {
     return Column(
       children: [
-        // Profile Avatar (matching iOS gradient and shadow)
+        // Profile Avatar with user photo or default
         Container(
           width: 100,
           height: 100,
@@ -84,19 +93,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.person,
-            color: Colors.white,
-            size: 40,
-          ),
+          child: user?.photoURL != null
+              ? ClipOval(
+                  child: Image.network(
+                    user!.photoURL!,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 40,
+                      );
+                    },
+                  ),
+                )
+              : const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 40,
+                ),
         ),
         
         const SizedBox(height: 16),
         
-        // User Greeting (matching iOS text style)
-        const Text(
-          'Hello, Paul Soni!', // Mock data - will be dynamic later
-          style: TextStyle(
+        // User Greeting (using real user data)
+        Text(
+          'Hello, ${user?.firstName ?? 'User'}!',
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -105,14 +130,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         const SizedBox(height: 4),
         
-        // Email (matching iOS secondary text)
+        // Email (using real user data)
         Text(
-          'psoni511@gmail.com', // Mock data - will be dynamic later
+          user?.email ?? 'No email',
           style: TextStyle(
             color: Colors.grey[400],
             fontSize: 16,
           ),
         ),
+        
+        // Provider badge (Google/Apple)
+        if (user != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: user.provider.name == 'google' 
+                  ? const Color(0xFF4285F4).withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: user.provider.name == 'google'
+                    ? const Color(0xFF4285F4).withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              'Signed in with ${user.providerDisplayName}',
+              style: TextStyle(
+                color: user.provider.name == 'google'
+                    ? const Color(0xFF4285F4)
+                    : Colors.grey[300],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -215,6 +270,212 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+  
+  // MARK: - Actions
+  
+  /// Handle user sign-out
+  Future<void> _handleSignOut() async {
+    // Show confirmation dialog
+    final bool? shouldSignOut = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.logout,
+                color: Colors.orange,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Are you sure you want to sign out? You can always sign back in later.',
+            style: TextStyle(
+              color: Colors.grey[300],
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSignOut == true) {
+      final authService = context.read<AuthService>();
+      await authService.signOut();
+    }
+  }
+
+  /// Handle account deletion
+  Future<void> _handleDeleteAccount() async {
+    // Show first confirmation dialog
+    final bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2C2C2E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning,
+                color: Colors.red,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Delete Account',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'This will permanently delete your account and all your data including saved addresses, route history, and statistics. This action cannot be undone.',
+            style: TextStyle(
+              color: Colors.grey[300],
+              fontSize: 16,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      // Show final confirmation dialog
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF2C2C2E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'Are you absolutely sure?',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'Type "DELETE" to confirm account deletion:',
+              style: TextStyle(
+                color: Colors.grey[300],
+                fontSize: 16,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.grey[400],
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  'DELETE ACCOUNT',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        final authService = context.read<AuthService>();
+        final success = await authService.deleteAccount();
+        
+        if (mounted && !success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                authService.errorMessage ?? 'Failed to delete account',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    }
   }
 
   // MARK: - Basic Stat Item (Top Row)

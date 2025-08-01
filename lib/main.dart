@@ -1,14 +1,28 @@
 // lib/main.dart
 //
-// Main app entry point for DriveLess Flutter app
-// Now with tab-based navigation matching iOS app
+// Main app entry point with Firebase authentication
+// Shows welcome screen when not authenticated, main app when authenticated
 
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 
-// Import our main navigation
+import 'services/auth_service.dart';
+import 'services/saved_address_service.dart';
+import 'screens/welcome_screen.dart';
 import 'screens/main_tab_view.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter widgets are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  
+  // Initialize services
+  final savedAddressService = SavedAddressService();
+  await savedAddressService.initialize();
+  
   runApp(const DriveLessApp());
 }
 
@@ -17,75 +31,167 @@ class DriveLessApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'DriveLess',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // DriveLess brand colors - matching your iOS app
-        primarySwatch: Colors.green,
-        primaryColor: const Color(0xFF2E7D32), // Dark green
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2E7D32),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        
-        // App bar theme
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2E7D32),
-          foregroundColor: Colors.white,
-          elevation: 0,
+    return MultiProvider(
+      providers: [
+        // Authentication service provider
+        ChangeNotifierProvider(
+          create: (context) => AuthService(),
         ),
         
-        // Elevated button theme
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2E7D32),
+        // Saved addresses service provider
+        ChangeNotifierProvider(
+          create: (context) => SavedAddressService(),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'DriveLess',
+        debugShowCheckedModeBanner: false,
+        
+        // Theme configuration
+        theme: ThemeData(
+          primarySwatch: Colors.green,
+          primaryColor: const Color(0xFF2E7D32),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2E7D32),
+            brightness: Brightness.light,
+          ),
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF2E7D32),
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+            elevation: 0,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
         ),
-      ),
-      
-      // Dark theme to match your iOS app
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.green,
-        primaryColor: const Color(0xFF2E7D32),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2E7D32),
+        
+        // Dark theme configuration (primary theme)
+        darkTheme: ThemeData(
           brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        
-        // Dark mode app bar
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1B1B1B),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        
-        // Dark mode card theme - FIXED: CardThemeData instead of CardTheme
-        cardTheme: const CardThemeData(
-          color: Color(0xFF2C2C2E),
-          elevation: 8,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(16)),
+          primarySwatch: Colors.green,
+          primaryColor: const Color(0xFF2E7D32),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF2E7D32),
+            brightness: Brightness.dark,
           ),
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF1B1B1B),
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          cardTheme: const CardThemeData(
+            color: Color(0xFF2C2C2E),
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+          ),
+          scaffoldBackgroundColor: const Color(0xFF000000),
         ),
         
-        // Dark mode background
-        scaffoldBackgroundColor: const Color(0xFF000000),
+        // Use dark theme by default
+        themeMode: ThemeMode.dark,
+        
+        // Authentication-aware home screen
+        home: const AuthWrapper(),
       ),
-      
-      // Use dark theme by default to match your iOS app
-      themeMode: ThemeMode.dark,
-      
-      // Use tab-based navigation matching iOS app
-      home: const MainTabView(),
+    );
+  }
+}
+
+/// Wrapper that determines which screen to show based on auth state
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        // Show loading screen while determining auth state
+        if (authService.isLoading) {
+          return const LoadingScreen();
+        }
+        
+        // Show main app if user is signed in
+        if (authService.isSignedIn) {
+          return const MainTabView();
+        }
+        
+        // Show welcome screen if user is not signed in
+        return const WelcomeScreen();
+      },
+    );
+  }
+}
+
+/// Loading screen shown during authentication state changes
+class LoadingScreen extends StatelessWidget {
+  const LoadingScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App logo
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2E7D32).withOpacity(0.3),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.route,
+                color: Colors.white,
+                size: 40,
+              ),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Loading indicator
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Loading text
+            Text(
+              'DriveLess',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
