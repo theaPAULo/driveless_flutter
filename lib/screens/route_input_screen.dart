@@ -1,7 +1,7 @@
 // lib/screens/route_input_screen.dart
 //
 // Main route planning interface with Google Places autocomplete
-// Updated to use smart address input fields
+// Updated to work with MainTabView navigation (no bottom nav bar)
 
 import 'package:flutter/material.dart';
 
@@ -78,115 +78,57 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               // MARK: - Optimize Button
               _buildOptimizeButton(),
               
-              const SizedBox(height: 20),
+              const SizedBox(height: 40), // Extra padding for tab bar
             ],
           ),
         ),
       ),
-      
-      // MARK: - Bottom Navigation Bar (matching iOS app)
-      bottomNavigationBar: Container(
-        height: 90,
-        decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
-          border: Border(
-            top: BorderSide(color: Color(0xFF38383A), width: 0.5),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // Search tab (active)
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.map,
-                  color: const Color(0xFF2E7D32),
-                  size: 24,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Search',
-                  style: TextStyle(
-                    color: const Color(0xFF2E7D32),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            
-            // Profile tab (inactive)
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.person_outline,
-                  color: Colors.grey[600],
-                  size: 24,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+      // REMOVED: bottomNavigationBar is now handled by MainTabView
     );
   }
 
-  // MARK: - Header Section
+  // MARK: - Header Section (matching iOS exactly)
   Widget _buildHeaderSection() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Plan Your Route',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Plan Your Route',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Drive Less, Save Time',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Drive Less, Save Time',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[400],
+            // Admin badge (placeholder for now)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(20),
               ),
-            ),
-          ],
-        ),
-        
-        const Spacer(),
-        
-        // Usage indicator (placeholder for now)
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '5/25',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              'today',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[400],
+              child: const Text(
+                '0/∞\nadmin',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -205,27 +147,22 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Start location field with autocomplete
+          // Starting location field
           AutocompleteTextField(
             controller: _startLocationController,
             hint: 'Starting location',
-            icon: Icons.radio_button_checked,
+            icon: Icons.my_location,
             iconColor: const Color(0xFF2E7D32),
             onPlaceSelected: (placeDetails) {
               setState(() {
                 _startLocationAddress = placeDetails.formattedAddress;
-                // Update end location if round trip is enabled
-                if (_isRoundTrip) {
-                  _endLocationController.text = placeDetails.name;
-                  _endLocationAddress = placeDetails.formattedAddress;
-                }
               });
             },
             onChanged: () {
@@ -235,18 +172,13 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             },
           ),
           
-          // "Use current location" button for start location (matches iOS)
+          // "Use current location" button for start (matches iOS)
           CurrentLocationButton(
             isVisible: _startLocationController.text.isEmpty,
             onLocationSelected: (placeDetails) {
               setState(() {
                 _startLocationController.text = placeDetails.name;
                 _startLocationAddress = placeDetails.formattedAddress;
-                // Update end location if round trip is enabled
-                if (_isRoundTrip) {
-                  _endLocationController.text = placeDetails.name;
-                  _endLocationAddress = placeDetails.formattedAddress;
-                }
               });
             },
           ),
@@ -257,10 +189,10 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           // Stops section
           ..._buildStopsSection(),
           
-          // Another connector line (if there are stops)
-          if (_stopControllers.isNotEmpty) _buildConnectorLine(),
+          // Connector line to destination
+          _buildConnectorLine(),
           
-          // Destination field with autocomplete
+          // Destination field
           AutocompleteTextField(
             controller: _endLocationController,
             hint: _isRoundTrip ? 'Return to start' : 'Destination',
@@ -333,108 +265,82 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return stopWidgets;
   }
 
-  // MARK: - Individual Stop Field with Autocomplete
+  // MARK: - Individual Stop Field
   Widget _buildStopField({required int index}) {
-    return Column(
+    return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              // Stop autocomplete field
-              Expanded(
-                child: AutocompleteTextField(
-                  controller: _stopControllers[index],
-                  hint: 'Stop ${index + 1}',
-                  icon: Icons.location_on,
-                  iconColor: Colors.orange,
-                  onPlaceSelected: (placeDetails) {
-                    setState(() {
-                      // Ensure the addresses list is big enough
-                      while (_stopAddresses.length <= index) {
-                        _stopAddresses.add('');
-                      }
-                      _stopAddresses[index] = placeDetails.formattedAddress;
-                    });
-                  },
-                  onChanged: () {
-                    setState(() {
-                      // Update button state when text changes
-                    });
-                  },
-                ),
-              ),
-              
-              const SizedBox(width: 8),
-              
-              // Remove stop button
-              GestureDetector(
-                onTap: () => _removeStop(index),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[700],
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ],
+        Expanded(
+          child: AutocompleteTextField(
+            controller: _stopControllers[index],
+            hint: 'Stop ${index + 1}',
+            icon: Icons.info_outline,
+            iconColor: const Color(0xFF2E7D32),
+            onPlaceSelected: (placeDetails) {
+              setState(() {
+                // Ensure the addresses list is large enough
+                while (_stopAddresses.length <= index) {
+                  _stopAddresses.add('');
+                }
+                _stopAddresses[index] = placeDetails.formattedAddress;
+              });
+            },
+            onChanged: () {
+              setState(() {
+                // Update button state when text changes
+              });
+            },
           ),
         ),
         
-        // "Use current location" button for this stop (matches iOS)
-        CurrentLocationButton(
-          isVisible: _stopControllers[index].text.isEmpty,
-          onLocationSelected: (placeDetails) {
-            setState(() {
-              _stopControllers[index].text = placeDetails.name;
-              // Ensure the addresses list is big enough
-              while (_stopAddresses.length <= index) {
-                _stopAddresses.add('');
-              }
-              _stopAddresses[index] = placeDetails.formattedAddress;
-            });
-          },
-        ),
+        // Remove button
+        if (_stopControllers.length > 1)
+          GestureDetector(
+            onTap: () => _removeStop(index),
+            child: Container(
+              margin: const EdgeInsets.only(left: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.red,
+                size: 16,
+              ),
+            ),
+          ),
       ],
     );
   }
 
   // MARK: - Add Stop Button
   Widget _buildAddStopButton() {
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      child: GestureDetector(
-        onTap: _addStop,
+    return GestureDetector(
+      onTap: _addStop,
+      child: Container(
+        margin: const EdgeInsets.only(left: 44, top: 8),
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 20,
+              height: 20,
               decoration: BoxDecoration(
                 color: const Color(0xFF2E7D32).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(4),
               ),
               child: const Icon(
                 Icons.add,
                 color: Color(0xFF2E7D32),
-                size: 16,
+                size: 14,
               ),
             ),
-            
-            const SizedBox(width: 12),
-            
-            Text(
+            const SizedBox(width: 8),
+            const Text(
               'Add Stop',
               style: TextStyle(
-                color: const Color(0xFF2E7D32),
-                fontSize: 16,
+                color: Color(0xFF2E7D32),
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -454,26 +360,23 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
+            blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Round Trip toggle
+          // Round Trip Toggle
           _buildToggleOption(
-            icon: Icons.sync,
+            icon: Icons.repeat,
             title: 'Round Trip',
             subtitle: 'Return to starting location',
             value: _isRoundTrip,
             onChanged: (value) {
               setState(() {
                 _isRoundTrip = value;
-                if (_isRoundTrip && _startLocationController.text.isNotEmpty) {
-                  _endLocationController.text = _startLocationController.text;
-                  _endLocationAddress = _startLocationAddress;
-                } else {
+                if (_isRoundTrip) {
                   _endLocationController.clear();
                   _endLocationAddress = '';
                 }
@@ -482,9 +385,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             activeColor: const Color(0xFF2E7D32),
           ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
-          // Consider Traffic toggle
+          // Traffic Toggle
           _buildToggleOption(
             icon: Icons.traffic,
             title: 'Consider Traffic',
@@ -495,7 +398,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 _considerTraffic = value;
               });
             },
-            activeColor: const Color(0xFF8B4513), // Brown color from iOS app
+            activeColor: const Color(0xFF8B4513),
           ),
         ],
       ),
@@ -713,7 +616,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         originalInputs: originalInputs,
       );
 
-      // Navigate to results screen instead of showing snackbar
+      // Navigate to results screen
       if (mounted) {
         Navigator.push(
           context,

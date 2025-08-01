@@ -1,12 +1,12 @@
 // lib/main.dart
 //
 // Main app entry point for DriveLess Flutter app
-// Clean version ready for production route input screen
+// Now with tab-based navigation matching iOS app
 
 import 'package:flutter/material.dart';
 
-// Import our screens
-import 'screens/route_input_screen.dart';
+// Import our main navigation
+import 'screens/main_tab_view.dart';
 
 void main() {
   runApp(const DriveLessApp());
@@ -84,8 +84,8 @@ class DriveLessApp extends StatelessWidget {
       // Use dark theme by default to match your iOS app
       themeMode: ThemeMode.dark,
       
-      // Navigate directly to route input screen
-      home: const RouteInputScreen(),
+      // Use tab-based navigation matching iOS app
+      home: const MainTabView(),
     );
   }
 }
