@@ -39,6 +39,19 @@ class DriveLessUser {
     required this.provider,
   });
 
+  /// Get first name from display name or email
+  String? get firstName {
+    if (displayName != null && displayName!.isNotEmpty) {
+      // Split display name and return first part
+      final nameParts = displayName!.split(' ');
+      return nameParts.isNotEmpty ? nameParts.first : null;
+    } else if (email != null && email!.isNotEmpty) {
+      // Extract first part of email before @
+      return email!.split('@').first;
+    }
+    return null;
+  }
+
   /// Create DriveLessUser from Firebase User
   factory DriveLessUser.fromFirebaseUser(User firebaseUser) {
     // Determine provider type based on Firebase provider data
