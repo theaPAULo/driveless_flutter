@@ -1,19 +1,22 @@
 // lib/services/saved_address_service.dart
 //
-// Service for managing saved addresses with local storage
-// Replicates iOS Core Data functionality using SharedPreferences
+// Service for managing saved addresses with Firestore cloud storage
+// Replaces SharedPreferences with Firebase Firestore for cross-device sync
+// Maintains backward compatibility and offline support
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/saved_address_model.dart';
 import '../utils/constants.dart';
 import '../widgets/autocomplete_text_field.dart';
 
-/// Service class for managing saved addresses (equivalent to iOS SavedAddressManager)
+/// Service class for managing saved addresses with Firestore backend
 class SavedAddressService extends ChangeNotifier {
-  static const String _storageKey = 'saved_addresses';
+  static const String _localStorageKey = 'saved_addresses';
   
   /// List of all saved addresses
   List<SavedAddress> _savedAddresses = [];
@@ -26,31 +29,35 @@ class SavedAddressService extends ChangeNotifier {
   factory SavedAddressService() => _instance;
   SavedAddressService._internal();
 
-  /// Initialize the service and load saved addresses from storage
+  // Firebase instances
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Initialize the service and load saved addresses
   Future<void> initialize() async {
     await _loadSavedAddresses();
   }
 
   // MARK: - Load/Save Operations
 
-  /// Load saved addresses from local storage
+  /// Load saved addresses from Firestore (with local fallback)
   Future<void> _loadSavedAddresses() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? addressesJson = prefs.getString(_storageKey);
+      final User? currentUser = _auth.currentUser;
       
-      if (addressesJson != null) {
-        final List<dynamic> addressesList = json.decode(addressesJson);
-        _savedAddresses = addressesList
-            .map((json) => SavedAddress.fromJson(json as Map<String, dynamic>))
-            .toList();
-        
-        // Sort addresses: Home first, Work second, then custom by creation date
-        _sortAddresses();
-        
-        if (EnvironmentConfig.logApiCalls) {
-          print('✅ Loaded ${_savedAddresses.length} saved addresses');
-        }
+      if (currentUser != null) {
+        // User is signed in - try to load from Firestore
+        await _loadFromFirestore(currentUser.uid);
+      } else {
+        // User not signed in - load from local storage
+        await _loadFromLocalStorage();
+      }
+      
+      // Sort addresses: Home first, Work second, then custom by creation date
+      _sortAddresses();
+      
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Loaded ${_savedAddresses.length} saved addresses');
       }
       
       notifyListeners();
@@ -58,25 +65,177 @@ class SavedAddressService extends ChangeNotifier {
       if (EnvironmentConfig.logApiCalls) {
         print('❌ Error loading saved addresses: $e');
       }
+      // Fallback to local storage on any error
+      await _loadFromLocalStorage();
+      notifyListeners();
     }
   }
 
-  /// Save all addresses to local storage
-  Future<void> _saveToStorage() async {
+  /// Load addresses from Firestore
+  Future<void> _loadFromFirestore(String userId) async {
+    try {
+      final QuerySnapshot snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('saved_addresses')
+          .orderBy('createdDate', descending: false)
+          .get();
+      
+      _savedAddresses = snapshot.docs
+          .map((doc) => SavedAddress.fromJson({
+                ...doc.data() as Map<String, dynamic>,
+                'id': doc.id,
+              }))
+          .toList();
+      
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Loaded ${_savedAddresses.length} addresses from Firestore');
+      }
+      
+      // Also save to local storage as backup
+      await _saveToLocalStorage();
+      
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error loading from Firestore: $e');
+      }
+      throw e; // Re-throw to trigger local storage fallback
+    }
+  }
+
+  /// Load addresses from local storage (fallback)
+  Future<void> _loadFromLocalStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? addressesJson = prefs.getString(_localStorageKey);
+      
+      if (addressesJson != null) {
+        final List<dynamic> addressesList = json.decode(addressesJson);
+        _savedAddresses = addressesList
+            .map((json) => SavedAddress.fromJson(json as Map<String, dynamic>))
+            .toList();
+        
+        if (EnvironmentConfig.logApiCalls) {
+          print('✅ Loaded ${_savedAddresses.length} addresses from local storage');
+        }
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error loading from local storage: $e');
+      }
+    }
+  }
+
+  /// Save all addresses to both Firestore and local storage
+  Future<void> _saveAddresses() async {
+    final User? currentUser = _auth.currentUser;
+    
+    // Always save to local storage as backup
+    await _saveToLocalStorage();
+    
+    // If user is signed in, also save to Firestore
+    if (currentUser != null) {
+      await _saveToFirestore(currentUser.uid);
+    }
+  }
+
+  /// Save addresses to Firestore
+  Future<void> _saveToFirestore(String userId) async {
+    try {
+      final WriteBatch batch = _firestore.batch();
+      final CollectionReference addressCollection = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('saved_addresses');
+      
+      // First, get existing documents to delete them
+      final QuerySnapshot existingDocs = await addressCollection.get();
+      for (QueryDocumentSnapshot doc in existingDocs.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Add all current addresses
+      for (SavedAddress address in _savedAddresses) {
+        final DocumentReference docRef = addressCollection.doc(address.id);
+        final Map<String, dynamic> data = address.toJson();
+        data.remove('id'); // Don't store ID in document data
+        batch.set(docRef, data);
+      }
+      
+      // Commit the batch
+      await batch.commit();
+      
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Saved ${_savedAddresses.length} addresses to Firestore');
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error saving to Firestore: $e');
+      }
+      // Don't throw - local storage still works
+    }
+  }
+
+  /// Save addresses to local storage (backup)
+  Future<void> _saveToLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String addressesJson = json.encode(
         _savedAddresses.map((address) => address.toJson()).toList(),
       );
       
-      await prefs.setString(_storageKey, addressesJson);
+      await prefs.setString(_localStorageKey, addressesJson);
       
       if (EnvironmentConfig.logApiCalls) {
-        print('✅ Saved ${_savedAddresses.length} addresses to storage');
+        print('✅ Saved ${_savedAddresses.length} addresses to local storage');
       }
     } catch (e) {
       if (EnvironmentConfig.logApiCalls) {
-        print('❌ Error saving addresses: $e');
+        print('❌ Error saving to local storage: $e');
+      }
+    }
+  }
+
+  /// Migrate existing local addresses to Firestore (one-time operation)
+  Future<void> migrateLocalAddressesToFirestore() async {
+    final User? currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('⚠️ Cannot migrate: user not signed in');
+      }
+      return;
+    }
+    
+    try {
+      // Check if user already has addresses in Firestore
+      final QuerySnapshot existing = await _firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('saved_addresses')
+          .limit(1)
+          .get();
+      
+      if (existing.docs.isNotEmpty) {
+        if (EnvironmentConfig.logApiCalls) {
+          print('ℹ️ User already has Firestore addresses, skipping migration');
+        }
+        return;
+      }
+      
+      // Load local addresses
+      await _loadFromLocalStorage();
+      
+      if (_savedAddresses.isNotEmpty) {
+        // Save to Firestore
+        await _saveToFirestore(currentUser.uid);
+        
+        if (EnvironmentConfig.logApiCalls) {
+          print('✅ Migrated ${_savedAddresses.length} addresses to Firestore');
+        }
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error during migration: $e');
       }
     }
   }
@@ -129,8 +288,8 @@ class SavedAddressService extends ChangeNotifier {
       _savedAddresses.add(newAddress);
       _sortAddresses();
       
-      // Save to storage
-      await _saveToStorage();
+      // Save to storage (both local and Firestore)
+      await _saveAddresses();
       notifyListeners();
 
       if (EnvironmentConfig.logApiCalls) {
@@ -195,8 +354,8 @@ class SavedAddressService extends ChangeNotifier {
       _savedAddresses[index] = updatedAddress;
       _sortAddresses();
       
-      // Save to storage
-      await _saveToStorage();
+      // Save to storage (both local and Firestore)
+      await _saveAddresses();
       notifyListeners();
 
       if (EnvironmentConfig.logApiCalls) {
@@ -219,7 +378,7 @@ class SavedAddressService extends ChangeNotifier {
       _savedAddresses.removeWhere((addr) => addr.id == addressId);
       
       if (_savedAddresses.length < initialCount) {
-        await _saveToStorage();
+        await _saveAddresses();
         notifyListeners();
         
         if (EnvironmentConfig.logApiCalls) {
@@ -244,7 +403,7 @@ class SavedAddressService extends ChangeNotifier {
   Future<void> clearAllAddresses() async {
     try {
       _savedAddresses.clear();
-      await _saveToStorage();
+      await _saveAddresses();
       notifyListeners();
       
       if (EnvironmentConfig.logApiCalls) {
@@ -263,7 +422,7 @@ class SavedAddressService extends ChangeNotifier {
   SavedAddress? get homeAddress {
     try {
       return _savedAddresses.firstWhere(
-        (addr) => addr.addressType == SavedAddressType.home,
+        (address) => address.addressType == SavedAddressType.home,
       );
     } catch (e) {
       return null;
@@ -274,7 +433,7 @@ class SavedAddressService extends ChangeNotifier {
   SavedAddress? get workAddress {
     try {
       return _savedAddresses.firstWhere(
-        (addr) => addr.addressType == SavedAddressType.work,
+        (address) => address.addressType == SavedAddressType.work,
       );
     } catch (e) {
       return null;
@@ -284,39 +443,44 @@ class SavedAddressService extends ChangeNotifier {
   /// Get all custom addresses
   List<SavedAddress> get customAddresses {
     return _savedAddresses
-        .where((addr) => addr.addressType == SavedAddressType.custom)
+        .where((address) => address.addressType == SavedAddressType.custom)
         .toList();
   }
 
-  /// Get addresses by type
-  List<SavedAddress> getAddressesByType(SavedAddressType type) {
-    return _savedAddresses
-        .where((addr) => addr.addressType == type)
-        .toList();
-  }
-
-  /// Find address by ID
+  /// Get address by ID
   SavedAddress? getAddressById(String id) {
     try {
-      return _savedAddresses.firstWhere((addr) => addr.id == id);
+      return _savedAddresses.firstWhere((address) => address.id == id);
     } catch (e) {
       return null;
     }
   }
 
+  /// Search addresses by label or address text
+  List<SavedAddress> searchAddresses(String query) {
+    if (query.isEmpty) return savedAddresses;
+    
+    final String lowercaseQuery = query.toLowerCase();
+    return _savedAddresses.where((address) {
+      return address.label.toLowerCase().contains(lowercaseQuery) ||
+             address.fullAddress.toLowerCase().contains(lowercaseQuery) ||
+             address.displayName.toLowerCase().contains(lowercaseQuery);
+    }).toList();
+  }
+
   // MARK: - Helper Methods
 
-  /// Check if an address would be a duplicate
+  /// Check if address is a duplicate
   bool _isDuplicateAddress(SavedAddress newAddress) {
-    for (final existingAddress in _savedAddresses) {
-      if (newAddress.isSameLocation(existingAddress)) {
+    for (final address in _savedAddresses) {
+      if (newAddress.isSameLocation(address)) {
         return true;
       }
     }
     return false;
   }
 
-  /// Sort addresses: Home first, Work second, custom by creation date
+  /// Sort addresses: Home first, Work second, then custom by creation date
   void _sortAddresses() {
     _savedAddresses.sort((a, b) {
       // Home addresses first
@@ -335,12 +499,36 @@ class SavedAddressService extends ChangeNotifier {
         return 1;
       }
       
-      // Within same type, sort by creation date (newest first)
-      return b.createdDate.compareTo(a.createdDate);
+      // Within same type, sort by creation date (newest first for custom)
+      if (a.addressType == SavedAddressType.custom && b.addressType == SavedAddressType.custom) {
+        return b.createdDate.compareTo(a.createdDate);
+      }
+      
+      return 0;
     });
   }
 
-  /// Convert SavedAddress to PlaceDetails for route planning integration
+  // MARK: - Authentication Integration
+
+  /// Handle user sign in - migrate local addresses to Firestore
+  Future<void> onUserSignIn() async {
+    await migrateLocalAddressesToFirestore();
+    await _loadSavedAddresses(); // Reload to get latest data
+  }
+
+  /// Handle user sign out - keep local copy
+  Future<void> onUserSignOut() async {
+    // Just save current addresses to local storage
+    await _saveToLocalStorage();
+    
+    if (EnvironmentConfig.logApiCalls) {
+      print('ℹ️ User signed out, addresses saved locally');
+    }
+  }
+
+  // MARK: - Utility Methods (for UI compatibility)
+
+  /// Convert SavedAddress to PlaceDetails format (for route input compatibility)
   PlaceDetails savedAddressToPlaceDetails(SavedAddress address) {
     return PlaceDetails(
       placeId: address.placeId ?? '',
@@ -373,7 +561,7 @@ class SavedAddressService extends ChangeNotifier {
 
   // MARK: - Statistics
 
-  /// Get count of addresses by type
+  /// Get count of addresses by type (required by SavedAddressesScreen)
   Map<SavedAddressType, int> get addressCounts {
     final Map<SavedAddressType, int> counts = {
       SavedAddressType.home: 0,
@@ -390,11 +578,16 @@ class SavedAddressService extends ChangeNotifier {
 
   /// Get total count of saved addresses
   int get totalAddressCount => _savedAddresses.length;
-
+  
   /// Get count of Home + Work addresses (for UI display)
   int get homeAndWorkCount {
     return _savedAddresses
         .where((addr) => addr.addressType != SavedAddressType.custom)
         .length;
   }
+  
+  /// Get count by type
+  int get homeAddressCount => _savedAddresses.where((a) => a.addressType == SavedAddressType.home).length;
+  int get workAddressCount => _savedAddresses.where((a) => a.addressType == SavedAddressType.work).length;
+  int get customAddressCount => _savedAddresses.where((a) => a.addressType == SavedAddressType.custom).length;
 }

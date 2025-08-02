@@ -1,9 +1,10 @@
 // lib/models/saved_route_model.dart
 //
-// Model for saved routes - handles local storage and route management
+// Model for saved routes - handles Firestore and local storage
 // Allows users to save, load, and manage their favorite routes
 
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'route_models.dart';
 
 /// Saved route with metadata for user management
@@ -36,12 +37,23 @@ class SavedRoute {
     };
   }
 
-  /// Create SavedRoute from JSON
+  /// Create SavedRoute from JSON (handles both Firestore and local storage)
   factory SavedRoute.fromJson(Map<String, dynamic> json) {
+    DateTime savedAtDate;
+    
+    // Handle different date formats (Firestore Timestamp vs ISO String)
+    if (json['savedAt'] is Timestamp) {
+      savedAtDate = (json['savedAt'] as Timestamp).toDate();
+    } else if (json['savedAt'] is String) {
+      savedAtDate = DateTime.parse(json['savedAt']);
+    } else {
+      savedAtDate = DateTime.now();
+    }
+    
     return SavedRoute(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      savedAt: DateTime.parse(json['savedAt'] ?? DateTime.now().toIso8601String()),
+      savedAt: savedAtDate,
       routeResult: OptimizedRouteResult.fromJson(json['routeResult'] ?? {}),
       originalInputs: OriginalRouteInputs.fromJson(json['originalInputs'] ?? {}),
       isFavorite: json['isFavorite'] ?? false,
@@ -101,6 +113,33 @@ class SavedRoute {
     }
     
     return name.isEmpty ? 'Unknown' : name;
+  }
+
+  /// Get formatted date for display
+  String get formattedDate {
+    final now = DateTime.now();
+    final difference = now.difference(savedAt);
+    
+    if (difference.inDays == 0) {
+      // Today - show time
+      final hour = savedAt.hour;
+      final minute = savedAt.minute.toString().padLeft(2, '0');
+      final amPm = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $amPm';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${savedAt.month}/${savedAt.day}/${savedAt.year}';
+    }
+  }
+
+  /// Get summary of route for quick viewing
+  String get routeSummary {
+    final stopCount = routeResult.optimizedStops.length;
+    return '$stopCount stops • ${routeResult.totalDistance} • ${routeResult.estimatedTime}';
   }
 
   @override

@@ -10,6 +10,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/user_model.dart';
 import '../utils/constants.dart';
+import 'saved_address_service.dart';
+import 'route_storage_service.dart';  // 🆕 ADD THIS LINE
+
+
 
 /// Authentication service handling all sign-in/sign-out operations
 class AuthService extends ChangeNotifier {
@@ -44,38 +48,88 @@ class AuthService extends ChangeNotifier {
     });
   }
 
-  /// Update user state when Firebase auth changes
-  Future<void> _updateUserState(User? firebaseUser) async {
-    if (firebaseUser != null) {
-      if (EnvironmentConfig.logApiCalls) {
-        print('✅ User signed in: ${firebaseUser.email ?? "No email"}');
-        print('🔐 Firebase UID: ${firebaseUser.uid}');
-      }
-
-      // Create DriveLess user model
-      _currentUser = DriveLessUser.fromFirebaseUser(firebaseUser);
-      
-      // Save/update user data in Firestore
-      await _saveUserToFirestore(_currentUser!);
-      
-      // Track sign-in analytics
-      await _trackUserSignIn();
-      
-    } else {
-      if (EnvironmentConfig.logApiCalls) {
-        print('❌ User signed out');
-      }
-      
-      // Track sign-out analytics
-      await _trackUserSignOut();
-      
-      _currentUser = null;
+/// Update user state when Firebase auth changes
+Future<void> _updateUserState(User? firebaseUser) async {
+  if (firebaseUser != null) {
+    if (EnvironmentConfig.logApiCalls) {
+      print('✅ User signed in: ${firebaseUser.email ?? "No email"}');
+      print('🔐 Firebase UID: ${firebaseUser.uid}');
     }
 
-    _isLoading = false;
-    _errorMessage = null;
-    notifyListeners();
+    // Create DriveLess user model
+    _currentUser = DriveLessUser.fromFirebaseUser(firebaseUser);
+    
+    // Save/update user data in Firestore
+    await _saveUserToFirestore(_currentUser!);
+    
+    // 🆕 NEW: Trigger address migration to Firestore
+    try {
+      final SavedAddressService addressService = SavedAddressService();
+      await addressService.onUserSignIn();
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Address migration completed for user');
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error during address migration: $e');
+      }
+    }
+    
+    // 🆕 NEW: Trigger route history migration to Firestore
+    try {
+      await RouteStorageService.onUserSignIn();
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Route history migration completed for user');
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error during route migration: $e');
+      }
+    }
+    
+    // Track sign-in analytics
+    await _trackUserSignIn();
+    
+  } else {
+    if (EnvironmentConfig.logApiCalls) {
+      print('❌ User signed out');
+    }
+    
+    // 🆕 NEW: Handle address service sign-out
+    try {
+      final SavedAddressService addressService = SavedAddressService();
+      await addressService.onUserSignOut();
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Address service sign-out handled');
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error during address sign-out: $e');
+      }
+    }
+    
+    // 🆕 NEW: Handle route service sign-out
+    try {
+      await RouteStorageService.onUserSignOut();
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Route service sign-out handled');
+      }
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error during route sign-out: $e');
+      }
+    }
+    
+    // Track sign-out analytics
+    await _trackUserSignOut();
+    
+    _currentUser = null;
   }
+
+  _isLoading = false;
+  _errorMessage = null;
+  notifyListeners();
+}
 
   /// Save user data to Firestore (for profile, analytics, etc.)
   Future<void> _saveUserToFirestore(DriveLessUser user) async {
