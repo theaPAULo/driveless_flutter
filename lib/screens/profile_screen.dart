@@ -416,21 +416,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildMenuCard(
           title: 'Feedback',
           children: [
-            _buildMenuItem(
-              icon: Icons.email_outlined,
-              iconColor: const Color(0xFF2E7D32),
-              title: 'Send Feedback',
-              subtitle: 'Help us improve DriveLess',
-              onTap: () {
-                // TODO: Implement feedback functionality
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Feedback feature coming soon!'),
-                    backgroundColor: Color(0xFF2E7D32),
-                  ),
-                );
-              },
-            ),
+            menuRow(
+            icon: Icons.feedback_outlined,
+            title: "Send Feedback",
+            subtitle: "Help us improve DriveLess",
+            action: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FeedbackScreen()),
+              );
+            },
+          ),
           ],
         ),
         
