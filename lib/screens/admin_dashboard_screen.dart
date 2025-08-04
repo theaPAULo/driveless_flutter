@@ -1,7 +1,7 @@
 // lib/screens/admin_dashboard_screen.dart
 //
-// Admin Dashboard screen with analytics and user management
-// Requires admin authentication via Firebase UID verification
+// Complete Admin Dashboard with Fixed User Statistics and Real Analytics
+// This provides comprehensive business intelligence for the app
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/route_storage_service.dart';
 import '../services/auth_service.dart';
+import '../services/analytics_service.dart';
 import '../utils/constants.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -25,6 +26,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   
   // Dashboard data
   Map<String, dynamic> _dashboardData = {};
+  
+  // Services
+  final AnalyticsService _analyticsService = AnalyticsService();
   
   @override
   void initState() {
@@ -67,8 +71,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       // Get route statistics
       final routeStats = await RouteStorageService.getRouteStatistics();
       
-      // Get user statistics from Firestore
+      // Get user statistics from Firestore (FIXED)
       final userStats = await _getUserStatistics();
+      
+      // Get analytics statistics (NEW)
+      final analyticsStats = await _analyticsService.getAnalyticsStatistics();
       
       // Get system statistics
       final systemStats = await _getSystemStatistics();
@@ -78,6 +85,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _dashboardData = {
             ...routeStats,
             ...userStats,
+            ...analyticsStats,
             ...systemStats,
           };
           _isLoading = false;
@@ -97,36 +105,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  /// Get user statistics from Firestore
+  /// FIXED: Get user statistics from Firestore
   Future<Map<String, dynamic>> _getUserStatistics() async {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      final now = DateTime.now();
       
-      // Get total registered users
+      // Get total registered users (FIXED: Check if collection exists)
       final usersSnapshot = await firestore.collection('users').get();
       final totalUsers = usersSnapshot.docs.length;
       
-      // Get new users this week
-      final weekAgo = DateTime.now().subtract(const Duration(days: 7));
-      final newUsersSnapshot = await firestore
+      print('📊 Total users found: $totalUsers'); // Debug log
+      
+      // Get new users this week (FIXED: Use createdAt field)
+      final weekAgo = now.subtract(const Duration(days: 7));
+      final newUsersQuery = firestore
           .collection('users')
-          .where('updatedAt', isGreaterThan: Timestamp.fromDate(weekAgo))
-          .get();
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(weekAgo));
+      
+      final newUsersSnapshot = await newUsersQuery.get();
       final newUsersThisWeek = newUsersSnapshot.docs.length;
       
-      // Get active users today (users who signed in today)
-      final today = DateTime.now();
-      final todayStart = DateTime(today.year, today.month, today.day);
-      final activeUsersSnapshot = await firestore
+      print('📊 New users this week: $newUsersThisWeek'); // Debug log
+      
+      // Get active users today (FIXED: Use lastActiveAt field)
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final activeUsersQuery = firestore
           .collection('users')
-          .where('lastActiveAt', isGreaterThan: Timestamp.fromDate(todayStart))
-          .get();
+          .where('lastActiveAt', isGreaterThan: Timestamp.fromDate(todayStart));
+      
+      final activeUsersSnapshot = await activeUsersQuery.get();
       final activeUsersToday = activeUsersSnapshot.docs.length;
+      
+      print('📊 Active users today: $activeUsersToday'); // Debug log
+      
+      // Calculate growth rate
+      final lastWeekStart = weekAgo.subtract(const Duration(days: 7));
+      final lastWeekUsersSnapshot = await firestore
+          .collection('users')
+          .where('createdAt', isGreaterThan: Timestamp.fromDate(lastWeekStart))
+          .where('createdAt', isLessThan: Timestamp.fromDate(weekAgo))
+          .get();
+      
+      final lastWeekNewUsers = lastWeekUsersSnapshot.docs.length;
+      final growthRate = lastWeekNewUsers > 0 
+          ? ((newUsersThisWeek - lastWeekNewUsers) / lastWeekNewUsers * 100)
+          : 0.0;
       
       return {
         'totalUsers': totalUsers,
         'newUsersThisWeek': newUsersThisWeek,
         'activeUsersToday': activeUsersToday,
+        'userGrowthRate': growthRate,
       };
     } catch (e) {
       if (EnvironmentConfig.logApiCalls) {
@@ -136,6 +166,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'totalUsers': 0,
         'newUsersThisWeek': 0,
         'activeUsersToday': 0,
+        'userGrowthRate': 0.0,
       };
     }
   }
@@ -145,13 +176,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       
-      // Get error count (you can implement error logging later)
-      final errorCount = 0; // Placeholder
+      // Get error count from new errors collection
+      final todayStart = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+      final errorsSnapshot = await firestore
+          .collection('errors')
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(todayStart))
+          .get();
       
-      // Calculate success rate
-      final totalOperations = _dashboardData['totalRoutes'] ?? 1;
-      final successRate = totalOperations > 0 ? 
-          ((totalOperations - errorCount) / totalOperations * 100) : 100.0;
+      final errorCount = errorsSnapshot.docs.length;
+      
+      // Get total route calculations for success rate
+      final totalRoutes = _dashboardData['todayRoutes'] ?? 0;
+      final successRate = (totalRoutes + errorCount) > 0 
+          ? (totalRoutes / (totalRoutes + errorCount) * 100)
+          : 100.0;
       
       // Get analytics events count
       final analyticsSnapshot = await firestore.collection('analytics').get();
@@ -161,7 +199,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'errorCount': errorCount,
         'successRate': successRate,
         'totalEvents': totalEvents,
-        'systemHealth': 'Healthy',
+        'systemHealth': errorCount < 10 ? 'Healthy' : 'Warning',
       };
     } catch (e) {
       if (EnvironmentConfig.logApiCalls) {
@@ -212,121 +250,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
-      body: _isLoading ? _buildLoadingView() : _buildDashboardView(),
-    );
-  }
-
-  // MARK: - Unauthorized View
-  Widget _buildUnauthorizedView() {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Access Denied',
-          style: TextStyle(color: Colors.white, fontSize: 20),
-        ),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.admin_panel_settings,
-                color: Colors.red,
-                size: 80,
+      body: _isLoading 
+          ? const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                'Admin Access Required',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quick Stats Overview
+                  _buildQuickStatsSection(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Usage Analytics Section
+                  _buildAnalyticsSection(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // User Analytics Section
+                  _buildUserAnalyticsSection(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // System Performance Section
+                  _buildSystemPerformanceSection(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Admin Actions Section
+                  _buildAdminActionsSection(),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                _errorMessage.isNotEmpty ? _errorMessage : 
-                'You need admin privileges to access this dashboard.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[400],
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // MARK: - Loading View
-  Widget _buildLoadingView() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: Color(0xFF2E7D32),
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Loading dashboard...',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 16,
             ),
-          ),
-        ],
-      ),
     );
   }
 
-  // MARK: - Dashboard View
-  Widget _buildDashboardView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Quick Stats Overview
-          _buildQuickStatsCard(),
-          
-          const SizedBox(height: 24),
-          
-          // User Analytics
-          _buildUserAnalyticsCard(),
-          
-          const SizedBox(height: 24),
-          
-          // Route Analytics
-          _buildRouteAnalyticsCard(),
-          
-          const SizedBox(height: 24),
-          
-          // System Health
-          _buildSystemHealthCard(),
-          
-          const SizedBox(height: 24),
-          
-          // Admin Actions
-          _buildAdminActionsCard(),
-        ],
-      ),
-    );
-  }
-
-  // MARK: - Quick Stats Card
-  Widget _buildQuickStatsCard() {
+  // MARK: - Quick Stats Overview
+  Widget _buildQuickStatsSection() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -351,248 +315,233 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
+          
           const SizedBox(height: 20),
           
+          // Grid of quick stats
           Row(
             children: [
-              _buildQuickStat(
-                'Total Users',
-                '${_dashboardData['totalUsers'] ?? 0}',
-                Icons.people,
-                const Color(0xFF2E7D32),
-              ),
-              const SizedBox(width: 20),
-              _buildQuickStat(
-                'Total Routes',
-                '${_dashboardData['totalRoutes'] ?? 0}',
-                Icons.route,
-                const Color(0xFF007AFF),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          Row(
-            children: [
-              _buildQuickStat(
-                'Active Today',
-                '${_dashboardData['activeUsersToday'] ?? 0}',
-                Icons.trending_up,
-                const Color(0xFF34C759),
-              ),
-              const SizedBox(width: 20),
-              _buildQuickStat(
-                'Success Rate',
-                '${(_dashboardData['successRate'] ?? 100.0).toStringAsFixed(1)}%',
-                Icons.check_circle,
-                const Color(0xFFFF9500),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStat(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // MARK: - User Analytics Card
-  Widget _buildUserAnalyticsCard() {
-    return _buildAnalyticsCard(
-      title: 'User Analytics',
-      icon: Icons.people_outline,
-      children: [
-        _buildAnalyticRow('Total Registered Users', '${_dashboardData['totalUsers'] ?? 0}'),
-        _buildAnalyticRow('New Users This Week', '${_dashboardData['newUsersThisWeek'] ?? 0}'),
-        _buildAnalyticRow('Active Users Today', '${_dashboardData['activeUsersToday'] ?? 0}'),
-      ],
-    );
-  }
-
-  // MARK: - Route Analytics Card
-  Widget _buildRouteAnalyticsCard() {
-    return _buildAnalyticsCard(
-      title: 'Route Analytics',
-      icon: Icons.analytics_outlined,
-      children: [
-        _buildAnalyticRow('Total Routes Calculated', '${_dashboardData['totalRoutes'] ?? 0}'),
-        _buildAnalyticRow('Favorite Routes', '${_dashboardData['favoriteRoutes'] ?? 0}'),
-        _buildAnalyticRow('Total Time Saved', '${(_dashboardData['totalTimeSaved'] ?? 0.0).toStringAsFixed(1)} hours'),
-        _buildAnalyticRow('CO₂ Saved', '${(_dashboardData['co2Saved'] ?? 0.0).toStringAsFixed(1)} lbs'),
-      ],
-    );
-  }
-
-  // MARK: - System Health Card
-  Widget _buildSystemHealthCard() {
-    return _buildAnalyticsCard(
-      title: 'System Health',
-      icon: Icons.health_and_safety_outlined,
-      children: [
-        _buildAnalyticRow('System Status', _dashboardData['systemHealth'] ?? 'Unknown'),
-        _buildAnalyticRow('Success Rate', '${(_dashboardData['successRate'] ?? 100.0).toStringAsFixed(1)}%'),
-        _buildAnalyticRow('Total Errors', '${_dashboardData['errorCount'] ?? 0}'),
-        _buildAnalyticRow('Analytics Events', '${_dashboardData['totalEvents'] ?? 0}'),
-      ],
-    );
-  }
-
-  // MARK: - Admin Actions Card
-  Widget _buildAdminActionsCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.admin_panel_settings, color: Color(0xFF2E7D32)),
-              SizedBox(width: 12),
-              Text(
-                'Admin Actions',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: _buildQuickStatCard(
+                  'Total Users',
+                  '${_dashboardData['totalUsers'] ?? 0}',
+                  Icons.people,
+                  const Color(0xFF2E7D32),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          
-          _buildActionButton(
-            'Export Analytics',
-            Icons.download,
-            () => _exportAnalytics(),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          _buildActionButton(
-            'View Error Logs',
-            Icons.error_outline,
-            () => _viewErrorLogs(),
-          ),
-          
-          const SizedBox(height: 12),
-          
-          _buildActionButton(
-            'Manage Users',
-            Icons.people_alt,
-            () => _manageUsers(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // MARK: - Helper Widgets
-  Widget _buildAnalyticsCard({
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: const Color(0xFF2E7D32)),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: _buildQuickStatCard(
+                  'Today Routes',
+                  '${_dashboardData['todayRoutes'] ?? 0}',
+                  Icons.route,
+                  const Color(0xFF007AFF),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ...children,
+          
+          const SizedBox(height: 12),
+          
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickStatCard(
+                  'Active Today',
+                  '${_dashboardData['activeUsersToday'] ?? 0}',
+                  Icons.schedule,
+                  const Color(0xFFFF9500),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildQuickStatCard(
+                  'Errors',
+                  '${_dashboardData['errorCount'] ?? 0}',
+                  Icons.error_outline,
+                  _dashboardData['errorCount'] == 0 ? const Color(0xFF2E7D32) : Colors.red,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAnalyticRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildQuickStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
           Text(
-            label,
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            title,
             style: TextStyle(
               color: Colors.grey[400],
               fontSize: 14,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // MARK: - Usage Analytics Section
+  Widget _buildAnalyticsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.analytics,
+                color: Color(0xFF2E7D32),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Usage Analytics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Route statistics
+          _buildStatRow('Daily Route Calculations', '${_dashboardData['todayRoutes'] ?? 0}', const Color(0xFF2E7D32)),
+          _buildStatRow('Weekly Total', '${_dashboardData['weekRoutes'] ?? 0}', const Color(0xFF007AFF)),
+          _buildStatRow('Monthly Total', '${_dashboardData['monthRoutes'] ?? 0}', const Color(0xFFFF9500)),
+          _buildStatRow('Average per User', '${(_dashboardData['totalUsers'] ?? 0) > 0 ? ((_dashboardData['monthRoutes'] ?? 0) / (_dashboardData['totalUsers'] ?? 1)).toStringAsFixed(1) : '0'}', const Color(0xFFAF52DE)),
+        ],
+      ),
+    );
+  }
+
+  // MARK: - User Analytics Section
+  Widget _buildUserAnalyticsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.people,
+                color: Color(0xFF2E7D32),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'User Analytics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // User statistics
+          _buildStatRow('Total Registered Users', '${_dashboardData['totalUsers'] ?? 0}', const Color(0xFF2E7D32)),
+          _buildStatRow('New Users This Week', '${_dashboardData['newUsersThisWeek'] ?? 0}', const Color(0xFF007AFF)),
+          _buildStatRow('Active Users Today', '${_dashboardData['activeUsersToday'] ?? 0}', const Color(0xFFFF9500)),
+          
+          // Growth rate indicator
+          const SizedBox(height: 12),
+          _buildGrowthIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrowthIndicator() {
+    final growthRate = _dashboardData['userGrowthRate'] ?? 0.0;
+    final isPositive = growthRate > 0;
+    final isNegative = growthRate < 0;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isPositive 
+            ? const Color(0xFF2E7D32).withOpacity(0.1)
+            : isNegative 
+                ? Colors.red.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isPositive 
+                ? Icons.trending_up 
+                : isNegative 
+                    ? Icons.trending_down 
+                    : Icons.trending_flat,
+            color: isPositive 
+                ? const Color(0xFF2E7D32)
+                : isNegative 
+                    ? Colors.red 
+                    : Colors.grey,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
           Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
+            'Growth Rate: ${growthRate.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: isPositive 
+                  ? const Color(0xFF2E7D32)
+                  : isNegative 
+                      ? Colors.red 
+                      : Colors.grey,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -601,31 +550,208 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildActionButton(String title, IconData icon, VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.withOpacity(0.3)),
-            borderRadius: BorderRadius.circular(8),
+  // MARK: - System Performance Section
+  Widget _buildSystemPerformanceSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Row(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Icon(icon, color: const Color(0xFF2E7D32), size: 20),
+              const Icon(
+                Icons.speed,
+                color: Color(0xFF2E7D32),
+                size: 24,
+              ),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(
+              const Text(
+                'System Performance',
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
-              const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // System statistics
+          _buildStatRow('Errors Today', '${_dashboardData['errorCount'] ?? 0}', _dashboardData['errorCount'] == 0 ? const Color(0xFF2E7D32) : Colors.red),
+          _buildStatRow('Success Rate', '${(_dashboardData['successRate'] ?? 100.0).toStringAsFixed(1)}%', const Color(0xFF2E7D32)),
+          _buildStatRow('Total Events', '${_dashboardData['totalEvents'] ?? 0}', const Color(0xFF007AFF)),
+          _buildStatRow('System Health', '${_dashboardData['systemHealth'] ?? 'Unknown'}', const Color(0xFF2E7D32)),
+        ],
+      ),
+    );
+  }
+
+  // MARK: - Admin Actions Section
+  Widget _buildAdminActionsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.settings,
+                color: Color(0xFF2E7D32),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Admin Actions',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Action buttons
+          _buildActionButton('Refresh Data', Icons.refresh, () => _loadDashboardData()),
+          const SizedBox(height: 12),
+          _buildActionButton('Export Analytics', Icons.file_download, () => _exportAnalytics()),
+          const SizedBox(height: 12),
+          _buildActionButton('View Detailed Logs', Icons.list_alt, () => _viewDetailedLogs()),
+          const SizedBox(height: 12),
+          _buildActionButton('Manage Users', Icons.supervisor_account, () => _manageUsers()),
+        ],
+      ),
+    );
+  }
+
+  // MARK: - Helper Widgets
+
+  Widget _buildStatRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey[300],
+                fontSize: 16,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, IconData icon, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF3C3C3E),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: const Color(0xFF2E7D32)),
+            const SizedBox(width: 12),
+            Text(label),
+            const Spacer(),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // MARK: - Unauthorized View
+  Widget _buildUnauthorizedView() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Access Denied',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.security,
+                size: 64,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _errorMessage.isNotEmpty ? _errorMessage : 'Admin access required',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D32),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Go Back'),
+              ),
             ],
           ),
         ),
@@ -633,29 +759,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // MARK: - Admin Action Methods
+  // MARK: - Action Methods (Placeholders)
+
   void _exportAnalytics() {
-    // TODO: Implement analytics export
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Analytics export feature coming soon'),
+        content: Text('Export analytics feature coming soon'),
         backgroundColor: Color(0xFF2E7D32),
       ),
     );
   }
 
-  void _viewErrorLogs() {
-    // TODO: Implement error logs view
+  void _viewDetailedLogs() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Error logs feature coming soon'),
+        content: Text('Detailed logs feature coming soon'),
         backgroundColor: Color(0xFF2E7D32),
       ),
     );
   }
 
   void _manageUsers() {
-    // TODO: Implement user management
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('User management feature coming soon'),
