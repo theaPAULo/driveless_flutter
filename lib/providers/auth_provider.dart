@@ -134,6 +134,8 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+
+
   /// Clear error message
   void clearError() {
     _errorMessage = null;
