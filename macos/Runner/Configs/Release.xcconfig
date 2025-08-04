@@ -1,4 +1,0 @@
-// Release configuration
-MACOSX_DEPLOYMENT_TARGET = 10.15
-#include "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
-#include "AppInfo.xcconfig"
