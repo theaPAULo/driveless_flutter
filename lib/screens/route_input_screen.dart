@@ -1,16 +1,18 @@
 // lib/screens/route_input_screen.dart
 //
-// Complete Route Input Screen with Usage Tracking Integration
-// This is the main route planning interface
+// iOS-Style Route Input Screen with Saved Address Chips and Current Location
+// Matches the iOS version design and functionality
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
 import '../services/usage_tracking_service.dart';
 import '../services/analytics_service.dart';
+import '../services/error_tracking_service.dart';
 import '../widgets/autocomplete_text_field.dart';
 import '../services/saved_address_service.dart';
 import '../models/saved_address_model.dart';
@@ -33,12 +35,14 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   final RouteCalculatorService _routeService = RouteCalculatorService();
   final UsageTrackingService _usageTrackingService = UsageTrackingService();
   final AnalyticsService _analyticsService = AnalyticsService();
+  final ErrorTrackingService _errorTrackingService = ErrorTrackingService();
   final SavedAddressService _savedAddressService = SavedAddressService();
   
   // State variables
   bool _isOptimizing = false;
   bool _isRoundTrip = false;
   bool _includeTraffic = true;
+  bool _isGettingLocation = false;
   List<SavedAddress> _savedAddresses = [];
   
   // Address storage for formatted addresses from autocomplete
@@ -66,7 +70,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   /// Load saved addresses from storage
   Future<void> _loadSavedAddresses() async {
     try {
-      // Use savedAddresses getter instead of method
       final addresses = _savedAddressService.savedAddresses;
       if (mounted) {
         setState(() {
@@ -80,8 +83,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   /// Load user settings
   void _loadSettings() {
-    // Load user preferences from SharedPreferences or provider
-    // For now, using default values
     setState(() {
       _isRoundTrip = false;
       _includeTraffic = true;
@@ -93,37 +94,38 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              _buildHeader(),
-              
-              const SizedBox(height: 32),
-              
-              // Route Input Section
-              _buildRouteInputSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Stops Section
-              _buildStopsSection(),
-              
-              const SizedBox(height: 32),
-              
-              // Settings Section
-              _buildSettingsSection(),
-              
-              const SizedBox(height: 32),
-              
-              // Optimize Button
-              _buildOptimizeButton(),
-              
-              const SizedBox(height: 20),
-            ],
-          ),
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(),
+            
+            // Main content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 24),
+                    
+                    // Route Input Section
+                    _buildRouteInputSection(),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Settings Section
+                    _buildSettingsSection(),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Optimize Button
+                    _buildOptimizeButton(),
+                    
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -131,26 +133,29 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // MARK: - Header
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Plan Your Route',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 34,
-            fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Plan Your Route',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Optimize your multi-stop journey',
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 17,
+          const SizedBox(height: 8),
+          Text(
+            'Optimize your multi-stop journey',
+            style: TextStyle(
+              color: Colors.grey[400],
+              fontSize: 17,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -171,197 +176,226 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       ),
       child: Column(
         children: [
-          // Start Location
-          _buildLocationInput(
+          // Start Location Section
+          _buildLocationSection(
+            label: 'Starting location',
             controller: _startLocationController,
-            hintText: 'Starting location',
             icon: Icons.location_on,
             iconColor: const Color(0xFF2E7D32),
-            onAddressSelected: (address) {
-              setState(() {
-                _startLocationAddress = address;
-              });
-            },
+            isStart: true,
           ),
           
           const SizedBox(height: 16),
           
-          // End Location (only if not round trip)
-          if (!_isRoundTrip) ...[
-            _buildLocationInput(
-              controller: _endLocationController,
-              hintText: 'Destination',
-              icon: Icons.flag,
-              iconColor: Colors.red,
-              onAddressSelected: (address) {
-                setState(() {
-                  _endLocationAddress = address;
-                });
-              },
+          // Connector line
+          _buildConnectorLine(),
+          
+          const SizedBox(height: 16),
+          
+          // Stops Section
+          ..._buildStopsSection(),
+          
+          // Add connector line if we have stops
+          if (_stopControllers.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _buildConnectorLine(),
+            const SizedBox(height: 16),
+          ],
+          
+          // End Location Section
+          _buildLocationSection(
+            label: _isRoundTrip ? 'Return to start' : 'Destination',
+            controller: _endLocationController,
+            icon: Icons.flag,
+            iconColor: Colors.red,
+            isStart: false,
+            isDisabled: _isRoundTrip,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // MARK: - Location Section with Saved Address Chips
+  Widget _buildLocationSection({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    required Color iconColor,
+    required bool isStart,
+    bool isDisabled = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Saved Address Chips (only show if not disabled and we have addresses)
+        if (!isDisabled && _savedAddresses.isNotEmpty)
+          _buildSavedAddressChips(isStart),
+        
+        if (!isDisabled && _savedAddresses.isNotEmpty)
+          const SizedBox(height: 12),
+        
+        // Location Input Row
+        Row(
+          children: [
+            // Icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 20,
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            // Text Field
+            Expanded(
+              child: AutocompleteTextField(
+                controller: controller,
+                hint: label,
+                icon: icon,
+                iconColor: iconColor,
+                enabled: !isDisabled,
+                onPlaceSelected: (placeDetails) {
+                  if (isStart) {
+                    _startLocationAddress = placeDetails.formattedAddress;
+                  } else {
+                    _endLocationAddress = placeDetails.formattedAddress;
+                  }
+                },
+              ),
             ),
           ],
-        ],
+        ),
+        
+        // Current Location Button (only show if field is empty and not disabled)
+        if (!isDisabled && controller.text.isEmpty)
+          _buildCurrentLocationButton(controller, isStart),
+      ],
+    );
+  }
+
+  // MARK: - Saved Address Chips
+  Widget _buildSavedAddressChips(bool isForStart) {
+    return Container(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _savedAddresses.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final address = _savedAddresses[index];
+          return _buildSavedAddressChip(address, isForStart);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSavedAddressChip(SavedAddress address, bool isForStart) {
+    IconData chipIcon;
+    switch (address.addressType) {
+      case SavedAddressType.home:
+        chipIcon = Icons.home;
+        break;
+      case SavedAddressType.work:
+        chipIcon = Icons.business;
+        break;
+      default:
+        chipIcon = Icons.place;
+    }
+
+    return GestureDetector(
+      onTap: () => _selectSavedAddress(address, isForStart),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: const Color(0xFF2E7D32).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: const Color(0xFF2E7D32).withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          chipIcon,
+          color: const Color(0xFF2E7D32),
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  // MARK: - Current Location Button
+  Widget _buildCurrentLocationButton(TextEditingController controller, bool isForStart) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, left: 56),
+      child: GestureDetector(
+        onTap: _isGettingLocation ? null : () => _useCurrentLocation(controller, isForStart),
+        child: Row(
+          children: [
+            Icon(
+              _isGettingLocation ? Icons.hourglass_empty : Icons.my_location,
+              color: const Color(0xFF2E7D32),
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _isGettingLocation ? 'Getting location...' : 'Use current location',
+              style: TextStyle(
+                color: const Color(0xFF2E7D32),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // MARK: - Connector Line
+  Widget _buildConnectorLine() {
+    return Container(
+      width: 2,
+      height: 20,
+      decoration: BoxDecoration(
+        color: Colors.grey[600],
+        borderRadius: BorderRadius.circular(1),
       ),
     );
   }
 
   // MARK: - Stops Section
-  Widget _buildStopsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section header
-          Row(
-            children: [
-              const Icon(
-                Icons.place,
-                color: Color(0xFF2E7D32),
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Stops',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          
-          // Existing stops
-          ..._stopControllers.asMap().entries.map((entry) {
-            final index = entry.key;
-            final controller = entry.value;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildStopInput(controller, index),
-            );
-          }).toList(),
-          
-          // Add Stop Button
-          _buildAddStopButton(),
-        ],
-      ),
-    );
+  List<Widget> _buildStopsSection() {
+    List<Widget> stopWidgets = [];
+    
+    for (int i = 0; i < _stopControllers.length; i++) {
+      stopWidgets.add(_buildStopInput(i));
+      if (i < _stopControllers.length - 1) {
+        stopWidgets.add(const SizedBox(height: 16));
+        stopWidgets.add(_buildConnectorLine());
+        stopWidgets.add(const SizedBox(height: 16));
+      }
+    }
+    
+    // Add "Add Stop" button
+    if (stopWidgets.isNotEmpty) {
+      stopWidgets.add(const SizedBox(height: 16));
+    }
+    stopWidgets.add(_buildAddStopButton());
+    
+    return stopWidgets;
   }
 
-  // MARK: - Settings Section
-  Widget _buildSettingsSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Round Trip Toggle
-          _buildToggleRow(
-            icon: Icons.refresh,
-            title: 'Round Trip',
-            subtitle: 'Return to starting location',
-            value: _isRoundTrip,
-            onChanged: (value) {
-              setState(() {
-                _isRoundTrip = value;
-                if (value) {
-                  _endLocationController.clear();
-                  _endLocationAddress = '';
-                }
-              });
-            },
-            activeColor: const Color(0xFF2E7D32),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Traffic Toggle
-          _buildToggleRow(
-            icon: Icons.traffic,
-            title: 'Consider Traffic',
-            subtitle: 'Include current traffic conditions',
-            value: _includeTraffic,
-            onChanged: (value) {
-              setState(() {
-                _includeTraffic = value;
-              });
-            },
-            activeColor: const Color(0xFF8B4513),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // MARK: - Helper Widgets
-
-  Widget _buildLocationInput({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData icon,
-    required Color iconColor,
-    required Function(String) onAddressSelected,
-  }) {
-    return Row(
-      children: [
-        // Icon
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 20,
-          ),
-        ),
-        
-        const SizedBox(width: 16),
-        
-        // Text Field with Autocomplete
-        Expanded(
-          child: AutocompleteTextField(
-            controller: controller,
-            hint: hintText,
-            icon: icon,
-            iconColor: iconColor,
-            onPlaceSelected: (placeDetails) {
-              onAddressSelected(placeDetails.formattedAddress);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStopInput(TextEditingController controller, int index) {
+  Widget _buildStopInput(int index) {
     return Row(
       children: [
         // Stop number
@@ -388,12 +422,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         // Text Field
         Expanded(
           child: AutocompleteTextField(
-            controller: controller,
+            controller: _stopControllers[index],
             hint: 'Stop ${index + 1}',
             icon: Icons.place,
             iconColor: const Color(0xFF007AFF),
             onPlaceSelected: (placeDetails) {
-              // Ensure _stopAddresses list is long enough
               while (_stopAddresses.length <= index) {
                 _stopAddresses.add('');
               }
@@ -460,6 +493,61 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // MARK: - Settings Section
+  Widget _buildSettingsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C2C2E),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Round Trip Toggle
+          _buildToggleRow(
+            icon: Icons.refresh,
+            title: 'Round Trip',
+            subtitle: 'Return to starting location',
+            value: _isRoundTrip,
+            onChanged: (value) {
+              setState(() {
+                _isRoundTrip = value;
+                if (value) {
+                  _endLocationController.clear();
+                  _endLocationAddress = '';
+                }
+              });
+            },
+            activeColor: const Color(0xFF2E7D32),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Traffic Toggle
+          _buildToggleRow(
+            icon: Icons.traffic,
+            title: 'Consider Traffic',
+            subtitle: 'Include current traffic conditions',
+            value: _includeTraffic,
+            onChanged: (value) {
+              setState(() {
+                _includeTraffic = value;
+              });
+            },
+            activeColor: const Color(0xFF8B4513),
+          ),
+        ],
       ),
     );
   }
@@ -622,7 +710,84 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
   }
 
-  // MARK: - Route Optimization with Usage Tracking
+  void _selectSavedAddress(SavedAddress address, bool isForStart) {
+    if (isForStart) {
+      _startLocationController.text = address.displayName.isNotEmpty 
+          ? address.displayName 
+          : address.label;
+      _startLocationAddress = address.fullAddress;
+    } else {
+      _endLocationController.text = address.displayName.isNotEmpty 
+          ? address.displayName 
+          : address.label;
+      _endLocationAddress = address.fullAddress;
+    }
+  }
+
+  Future<void> _useCurrentLocation(TextEditingController controller, bool isForStart) async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+
+    try {
+      // Check location permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied');
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // For now, just set coordinates as text (you could reverse geocode to get address)
+      final locationText = 'Current Location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+      
+      controller.text = locationText;
+      
+      if (isForStart) {
+        _startLocationAddress = locationText;
+      } else {
+        _endLocationAddress = locationText;
+      }
+
+      // Track successful location usage
+      await _analyticsService.trackEvent('current_location_used', details: isForStart ? 'start' : 'end');
+
+    } catch (e) {
+      // Track error
+      await _errorTrackingService.trackLocationError(
+        errorMessage: e.toString(),
+        stackTrace: StackTrace.current,
+      );
+
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error getting location: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGettingLocation = false;
+        });
+      }
+    }
+  }
+
+  // MARK: - Route Optimization with Enhanced Error Tracking
   Future<void> _optimizeRoute() async {
     if (_isOptimizing) return;
     
@@ -631,10 +796,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
 
     try {
-      // 🆕 STEP 1: Check usage limits BEFORE route calculation
+      // Check usage limits BEFORE route calculation
       final bool canCalculate = await _usageTrackingService.canPerformRouteCalculation();
       if (!canCalculate) {
-        // Show usage limit dialog
         if (mounted) {
           _showUsageLimitDialog();
         }
@@ -679,10 +843,10 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         isRoundTrip: _isRoundTrip,
       );
 
-      // 🆕 STEP 2: Track route calculation attempt in analytics
+      // Track route calculation attempt in analytics
       await _analyticsService.trackEvent(
         'route_calculation_started',
-        details: '${stops.length + 2} stops', // +2 for start and end
+        details: '${stops.length + 2} stops',
       );
 
       // Calculate optimized route
@@ -693,7 +857,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         originalInputs: originalInputs,
       );
 
-      // 🆕 STEP 3: On SUCCESS - Increment usage and track successful calculation
+      // On SUCCESS - Increment usage and track successful calculation
       await _usageTrackingService.incrementUsage();
       
       await _analyticsService.trackRouteCalculation(
@@ -717,7 +881,15 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       }
 
     } catch (e) {
-      // 🆕 STEP 4: On ERROR - Track failed calculation (but don't increment usage)
+      // Enhanced error tracking
+      await _errorTrackingService.trackRouteCalculationError(
+        errorMessage: e.toString(),
+        startLocation: _startLocationController.text,
+        endLocation: _endLocationController.text,
+        stops: _stopControllers.map((c) => c.text).toList(),
+        stackTrace: StackTrace.current,
+      );
+
       await _analyticsService.trackEvent(
         'route_calculation_failed',
         details: e.toString(),
@@ -744,7 +916,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     }
   }
 
-  // 🆕 NEW: Show usage limit reached dialog
   void _showUsageLimitDialog() {
     showDialog(
       context: context,
