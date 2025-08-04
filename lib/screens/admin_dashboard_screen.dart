@@ -1,7 +1,7 @@
 // lib/screens/admin_dashboard_screen.dart
 //
-// Complete Admin Dashboard with Fixed User Statistics and Real Analytics
-// This provides comprehensive business intelligence for the app
+// FIXED: Admin Dashboard with improved admin check and retry logic
+// Eliminates the first-try access denial issue
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +23,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _isLoading = true;
   bool _isAuthorized = false;
   String _errorMessage = '';
+  int _retryCount = 0;
   
   // Dashboard data
   Map<String, dynamic> _dashboardData = {};
@@ -33,35 +34,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _checkAdminAccess();
+    _checkAdminAccessWithRetry();
   }
 
-  /// Check if current user is authorized as admin
-  Future<void> _checkAdminAccess() async {
-    try {
-      final AuthService authService = AuthService();
-      final bool isAdmin = await authService.isUserAdmin();
-      
-      if (isAdmin && mounted) {
-        setState(() {
-          _isAuthorized = true;
-        });
-        await _loadDashboardData();
-      } else {
-        setState(() {
-          _isAuthorized = false;
-          _errorMessage = 'Access denied. Admin privileges required.';
-          _isLoading = false;
-        });
+  /// FIXED: Check admin access with retry logic to eliminate first-try failures
+  Future<void> _checkAdminAccessWithRetry() async {
+    const maxRetries = 3;
+    const retryDelay = Duration(milliseconds: 500);
+    
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        if (EnvironmentConfig.logApiCalls) {
+          print('🔐 Admin access check attempt ${attempt + 1}/$maxRetries');
+        }
+        
+        // Add a small delay to ensure Firebase is ready
+        if (attempt > 0) {
+          await Future.delayed(retryDelay);
+        }
+        
+        final AuthService authService = AuthService();
+        final bool isAdmin = await authService.isUserAdmin();
+        
+        if (isAdmin && mounted) {
+          setState(() {
+            _isAuthorized = true;
+            _retryCount = attempt + 1;
+          });
+          
+          if (EnvironmentConfig.logApiCalls) {
+            print('✅ Admin access granted on attempt ${attempt + 1}');
+          }
+          
+          await _loadDashboardData();
+          return; // Success, exit retry loop
+        } else {
+          if (EnvironmentConfig.logApiCalls) {
+            print('❌ Admin access denied on attempt ${attempt + 1}');
+          }
+        }
+        
+      } catch (e) {
+        if (EnvironmentConfig.logApiCalls) {
+          print('❌ Admin check error on attempt ${attempt + 1}: $e');
+        }
+        
+        // If this is the last attempt, show error
+        if (attempt == maxRetries - 1) {
+          if (mounted) {
+            setState(() {
+              _isAuthorized = false;
+              _errorMessage = 'Error checking admin access: ${e.toString()}';
+              _isLoading = false;
+            });
+          }
+          return;
+        }
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isAuthorized = false;
-          _errorMessage = 'Error checking admin access: ${e.toString()}';
-          _isLoading = false;
-        });
-      }
+    }
+    
+    // If we get here, all attempts failed
+    if (mounted) {
+      setState(() {
+        _isAuthorized = false;
+        _errorMessage = 'Access denied. Admin privileges required.';
+        _isLoading = false;
+      });
     }
   }
 
@@ -90,6 +128,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           };
           _isLoading = false;
         });
+        
+        if (EnvironmentConfig.logApiCalls) {
+          print('✅ Dashboard data loaded successfully');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -105,17 +147,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  /// FIXED: Get user statistics from Firestore
+  /// FIXED: Get user statistics from Firestore with better error handling
   Future<Map<String, dynamic>> _getUserStatistics() async {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
       final now = DateTime.now();
       
-      // Get total registered users (FIXED: Check if collection exists)
+      if (EnvironmentConfig.logApiCalls) {
+        print('📊 Starting user statistics collection...');
+      }
+      
+      // Get total registered users (FIXED: Better error handling)
       final usersSnapshot = await firestore.collection('users').get();
       final totalUsers = usersSnapshot.docs.length;
       
-      print('📊 Total users found: $totalUsers'); // Debug log
+      if (EnvironmentConfig.logApiCalls) {
+        print('📊 Total users found: $totalUsers');
+      }
       
       // Get new users this week (FIXED: Use createdAt field)
       final weekAgo = now.subtract(const Duration(days: 7));
@@ -126,7 +174,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final newUsersSnapshot = await newUsersQuery.get();
       final newUsersThisWeek = newUsersSnapshot.docs.length;
       
-      print('📊 New users this week: $newUsersThisWeek'); // Debug log
+      if (EnvironmentConfig.logApiCalls) {
+        print('📊 New users this week: $newUsersThisWeek');
+      }
       
       // Get active users today (FIXED: Use lastActiveAt field)
       final todayStart = DateTime(now.year, now.month, now.day);
@@ -137,7 +187,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final activeUsersSnapshot = await activeUsersQuery.get();
       final activeUsersToday = activeUsersSnapshot.docs.length;
       
-      print('📊 Active users today: $activeUsersToday'); // Debug log
+      if (EnvironmentConfig.logApiCalls) {
+        print('📊 Active users today: $activeUsersToday');
+      }
       
       // Calculate growth rate
       final lastWeekStart = weekAgo.subtract(const Duration(days: 7));
@@ -171,7 +223,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  /// Get system statistics
+  /// Get system statistics with improved error tracking
   Future<Map<String, dynamic>> _getSystemStatistics() async {
     try {
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -184,6 +236,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .get();
       
       final errorCount = errorsSnapshot.docs.length;
+      
+      if (EnvironmentConfig.logApiCalls) {
+        print('📊 Errors today: $errorCount');
+      }
       
       // Get total route calculations for success rate
       final totalRoutes = _dashboardData['todayRoutes'] ?? 0;
@@ -229,13 +285,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'Admin Dashboard',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 34,
-            fontWeight: FontWeight.bold,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Admin Dashboard',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            // Show retry info if retries were needed
+            if (_retryCount > 1)
+              Text(
+                'Loaded after $_retryCount attempts',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 12,
+                ),
+              ),
+          ],
         ),
         centerTitle: false,
         actions: [
@@ -744,13 +814,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Go Back'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[700],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Go Back'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _isLoading = true;
+                        _errorMessage = '';
+                      });
+                      _checkAdminAccessWithRetry();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             ],
           ),
