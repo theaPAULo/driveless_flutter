@@ -12,8 +12,8 @@ dependencies:
     sdk: flutter
 
   # Existing dependencies
-  flutter_typeahead: ^5.0.1
-  http: ^1.1.0
+  flutter_typeahead: ^5.2.0
+  http: ^1.2.0
   geolocator: ^10.1.0
   permission_handler: ^11.1.0
   shared_preferences: ^2.2.2

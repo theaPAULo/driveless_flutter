@@ -1,7 +1,7 @@
 // lib/widgets/autocomplete_text_field.dart
 //
 // Smart address input field with Google Places autocomplete
-// Fixed to show business names instead of full addresses (matches iOS app)
+// Updated with inline typing and improved UI
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -92,300 +92,274 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: widget.iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              widget.icon,
-              color: widget.iconColor,
-              size: 16,
+    return TypeAheadField<PlacePrediction>(
+      controller: widget.controller,
+      
+      // Configure the text field appearance
+      builder: (context, controller, focusNode) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: widget.enabled 
+                ? const Color(0xFF3A3A3C) 
+                : const Color(0xFF3A3A3C).withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: focusNode.hasFocus 
+                  ? const Color(0xFF2E7D32) // Green border when focused
+                  : const Color(0xFF48484A),
+              width: focusNode.hasFocus ? 2 : 1,
             ),
           ),
-          
-          const SizedBox(width: 12),
-          
-          // Autocomplete text field
-          Expanded(
-            child: TypeAheadField<PlacePrediction>(
-              controller: widget.controller,
-              builder: (context, controller, focusNode) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: widget.enabled 
-                        ? const Color(0xFF3A3A3C) 
-                        : const Color(0xFF3A3A3C).withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFF48484A),
-                      width: 1,
-                    ),
-                  ),
-                  child: TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    enabled: widget.enabled,
-                    style: TextStyle(
-                      color: widget.enabled ? Colors.white : Colors.grey[500],
-                      fontSize: 16,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: widget.hint,
-                      hintStyle: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    onChanged: (value) {
-                      widget.onChanged?.call();
-                    },
-                  ),
-                );
-              },
-              
-              // Suggestions callback - fetch from Google Places API
-              suggestionsCallback: (pattern) async {
-                if (pattern.length < 2) return [];
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            enabled: widget.enabled,
+            style: TextStyle(
+              color: widget.enabled ? Colors.white : Colors.grey[500],
+              fontSize: 16,
+            ),
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              hintStyle: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 16,
+              ),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+            onChanged: (value) {
+              widget.onChanged?.call();
+            },
+          ),
+        );
+      },
+      
+      // Configure suggestions behavior
+      hideOnEmpty: true,
+      hideOnError: true,
+      hideOnLoading: false,
+      autoFlipDirection: true,
+      direction: VerticalDirection.down,
+      hideOnUnfocus: true,
+      
+      // Debounce duration to avoid too many API calls
+      debounceDuration: const Duration(milliseconds: 300),
+      
+      // Loading builder
+      loadingBuilder: (context) => Container(
+        color: const Color(0xFF2C2C2E),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  const Color(0xFF2E7D32),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Searching...',
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Empty builder (when no suggestions)
+      emptyBuilder: (context) => Container(),
+      
+      // Error builder
+      errorBuilder: (context, error) => Container(
+        color: const Color(0xFF2C2C2E),
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Unable to load suggestions',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 14,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+      
+      // Suggestions callback - fetch from Google Places API
+      suggestionsCallback: (pattern) async {
+        if (pattern.length < 2) return [];
+        
+        try {
+          return await _placesService.getAutocompleteSuggestions(pattern);
+        } catch (e) {
+          if (EnvironmentConfig.logApiCalls) {
+            print('❌ Autocomplete error: $e');
+          }
+          return [];
+        }
+      },
+      
+      // Build suggestion items with improved layout
+      itemBuilder: (context, suggestion) {
+        return Container(
+          color: const Color(0xFF2C2C2E),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () async {
+                // Set the text immediately for better UX
+                widget.controller.text = suggestion.mainText ?? suggestion.description;
                 
+                // Then fetch full place details
                 try {
-                  return await _placesService.getAutocompleteSuggestions(pattern);
-                } catch (e) {
-                  if (EnvironmentConfig.logApiCalls) {
-                    print('❌ Autocomplete error: $e');
+                  final details = await _placesService.getPlaceDetails(suggestion.placeId);
+                  if (details != null && widget.onPlaceSelected != null) {
+                    widget.onPlaceSelected!(details);
                   }
-                  return [];
+                } catch (e) {
+                  print('❌ Error fetching place details: $e');
                 }
               },
-              
-              // Build suggestion items
-              itemBuilder: (context, suggestion) {
-                return Container(
-                  color: const Color(0xFF2C2C2E),
-                  child: ListTile(
-                    leading: Icon(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Icon(
                       Icons.location_on,
-                      color: widget.iconColor,
+                      color: const Color(0xFF2E7D32),
                       size: 20,
                     ),
-                    title: Text(
-                      suggestion.mainText ?? suggestion.description,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            suggestion.mainText ?? suggestion.description,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (suggestion.secondaryText != null &&
+                              suggestion.secondaryText!.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                suggestion.secondaryText!,
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 13,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                    subtitle: suggestion.secondaryText != null
-                        ? Text(
-                            suggestion.secondaryText!,
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 14,
-                            ),
-                          )
-                        : null,
-                    dense: true,
-                  ),
-                );
-              },
-              
-              // Handle selection - FIXED to show business names
-              onSelected: (suggestion) async {
-                try {
-                  // Get detailed place information
-                  final placeDetails = await _placesService.getPlaceDetails(suggestion.placeId);
-                  
-                  // Update the text field with business name if available, otherwise formatted address
-                  // This matches iOS app behavior: show "Home Depot" instead of full address
-                  final displayText = _getDisplayText(placeDetails);
-                  widget.controller.text = displayText;
-                  
-                  if (EnvironmentConfig.logApiCalls) {
-                    print('📝 Display: "$displayText" | Address: "${placeDetails.formattedAddress}"');
-                  }
-                  
-                  // Notify parent widget
-                  widget.onPlaceSelected?.call(placeDetails);
-                  widget.onChanged?.call();
-                  
-                } catch (e) {
-                  if (EnvironmentConfig.logApiCalls) {
-                    print('❌ Place details error: $e');
-                  }
-                  // Fallback to suggestion description
-                  widget.controller.text = suggestion.description;
-                  widget.onChanged?.call();
-                }
-              },
-              
-              // Suggestions box decoration
-              decorationBuilder: (context, child) {
-                return Material(
-                  color: const Color(0xFF2C2C2E),
-                  borderRadius: BorderRadius.circular(8),
-                  elevation: 8,
-                  child: child,
-                );
-              },
-              
-              // Error handling
-              errorBuilder: (context, error) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  color: const Color(0xFF2C2C2E),
-                  child: Text(
-                    'Error loading suggestions',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                );
-              },
-              
-              // Empty state
-              emptyBuilder: (context) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  color: const Color(0xFF2C2C2E),
-                  child: Text(
-                    'No suggestions found',
-                    style: TextStyle(color: Colors.grey[400]),
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
+      
+      // Handle selection
+      onSelected: (suggestion) async {
+        // This is already handled in itemBuilder's onTap
+      },
+      
+      // Decoration for the suggestions container
+      decorationBuilder: (context, child) {
+        return Container(
+          margin: const EdgeInsets.only(top: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2C2C2E),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+      },
     );
-  }
-
-  /// Determine what text to display in the field
-  /// Prioritize business names over addresses for better UX (matches iOS app)
-  String _getDisplayText(PlaceDetails placeDetails) {
-    // If we have a meaningful business name (not just an address), use it
-    if (placeDetails.name.isNotEmpty && 
-        placeDetails.name != placeDetails.formattedAddress &&
-        !_isAddressLikeName(placeDetails.name)) {
-      return placeDetails.name;
-    }
-    
-    // Otherwise, use the formatted address
-    return placeDetails.formattedAddress;
-  }
-
-  /// Check if the "name" is actually just an address
-  bool _isAddressLikeName(String name) {
-    // If name contains common address patterns, it's probably not a business name
-    final addressPatterns = [
-      RegExp(r'\d+.*\b(St|Street|Ave|Avenue|Rd|Road|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|Court)\b', caseSensitive: false),
-      RegExp(r'^\d+\s+\w+', caseSensitive: false), // Starts with number and word
-    ];
-    
-    return addressPatterns.any((pattern) => pattern.hasMatch(name));
   }
 }
 
-/// Service class for Google Places API calls
+/// Service to handle Google Places API calls
 class GooglePlacesService {
-  static final GooglePlacesService _instance = GooglePlacesService._internal();
-  factory GooglePlacesService() => _instance;
-  GooglePlacesService._internal();
+  static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
-  final http.Client _httpClient = http.Client();
-
-  /// Get autocomplete suggestions from Google Places API
+  /// Get autocomplete suggestions
   Future<List<PlacePrediction>> getAutocompleteSuggestions(String input) async {
-    final String url = 'https://maps.googleapis.com/maps/api/place/autocomplete/json'
+    if (input.isEmpty) return [];
+
+    final String url = '$_baseUrl/autocomplete/json'
         '?input=${Uri.encodeComponent(input)}'
-        '&key=${EnvironmentConfig.apiKey}'
-        // Remove types restriction to get businesses, addresses, and everything
-        '&components=country:us';  // Restrict to US (adjust as needed)
-
-    if (EnvironmentConfig.logApiCalls) {
-      print('🔍 Places Autocomplete: $input');
-    }
+        '&key=${EnvironmentConfig.apiKey}'  // FIXED: Use correct API key reference
+        '&types=geocode|establishment'
+        '&components=country:us';
 
     try {
-      final response = await _httpClient.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
         if (data['status'] == 'OK') {
-          final predictions = (data['predictions'] as List)
-              .map((prediction) => PlacePrediction.fromJson(prediction))
+          final predictions = data['predictions'] as List;
+          return predictions
+              .map((p) => PlacePrediction.fromJson(p))
               .toList();
-          
-          if (EnvironmentConfig.logApiCalls) {
-            print('✅ Found ${predictions.length} suggestions');
-          }
-          
-          return predictions;
-        } else {
-          throw Exception('Places API error: ${data['status']}');
         }
-      } else {
-        throw Exception('HTTP error: ${response.statusCode}');
       }
+      
+      return [];
     } catch (e) {
-      if (EnvironmentConfig.logApiCalls) {
-        print('❌ Places autocomplete error: $e');
-      }
-      rethrow;
+      print('❌ Places API error: $e');
+      return [];
     }
   }
 
-  /// Get detailed place information by place ID
-  Future<PlaceDetails> getPlaceDetails(String placeId) async {
-    final String url = 'https://maps.googleapis.com/maps/api/place/details/json'
+  /// Get detailed place information
+  Future<PlaceDetails?> getPlaceDetails(String placeId) async {
+    final String url = '$_baseUrl/details/json'
         '?place_id=$placeId'
-        '&key=${EnvironmentConfig.apiKey}'
-        '&fields=place_id,name,formatted_address,geometry';
-
-    if (EnvironmentConfig.logApiCalls) {
-      print('📍 Getting place details: $placeId');
-    }
+        '&fields=place_id,name,formatted_address,geometry'
+        '&key=${EnvironmentConfig.apiKey}';  // FIXED: Use correct API key reference
 
     try {
-      final response = await _httpClient.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         
-        if (data['status'] == 'OK') {
-          final placeDetails = PlaceDetails.fromJson(data['result']);
-          
-          if (EnvironmentConfig.logApiCalls) {
-            print('✅ Got place details: ${placeDetails.name}');
-          }
-          
-          return placeDetails;
-        } else {
-          throw Exception('Place Details API error: ${data['status']}');
+        if (data['status'] == 'OK' && data['result'] != null) {
+          return PlaceDetails.fromJson(data['result']);
         }
-      } else {
-        throw Exception('HTTP error: ${response.statusCode}');
       }
+      
+      return null;
     } catch (e) {
-      if (EnvironmentConfig.logApiCalls) {
-        print('❌ Place details error: $e');
-      }
-      rethrow;
+      print('❌ Place details error: $e');
+      return null;
     }
-  }
-
-  void dispose() {
-    _httpClient.close();
   }
 }

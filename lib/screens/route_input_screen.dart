@@ -1,12 +1,14 @@
 // lib/screens/route_input_screen.dart
 //
-// IMPROVED: Clean UI, Clickable Location Pins, Fixed Saved Addresses
-// Addresses all user feedback for cleaner design
+// IMPROVED: Clean UI, Direct Typing Autocomplete, Reverse Geocoding
+// All three requested features implemented
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
@@ -16,6 +18,7 @@ import '../services/error_tracking_service.dart';
 import '../widgets/autocomplete_text_field.dart';
 import '../services/saved_address_service.dart';
 import '../models/saved_address_model.dart';
+import '../utils/constants.dart';
 import 'route_results_screen.dart';
 
 class RouteInputScreen extends StatefulWidget {
@@ -219,7 +222,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // MARK: - Location Section with Saved Address Chips
+  // MARK: - Location Section with Improved Saved Address Chips
   Widget _buildLocationSection({
     required String label,
     required TextEditingController controller,
@@ -227,128 +230,330 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     required Color iconColor,
     required bool isStart,
     bool isDisabled = false,
+    int? stopIndex,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        // Saved Address Chips (only show if not disabled and we have addresses)
-        if (!isDisabled && _savedAddresses.isNotEmpty)
-          _buildSavedAddressChips(isStart),
-        
-        if (!isDisabled && _savedAddresses.isNotEmpty)
-          const SizedBox(height: 12),
-        
-        // Location Input Row - CLEANED UP: Single icon that's clickable for location
-        Row(
+        // Left side: Icon and saved addresses in a compact layout
+        Column(
           children: [
-            // Clickable Location Icon (replaces the text button)
+            // Main location icon (clickable for current location)
             GestureDetector(
-              onTap: _isGettingLocation ? null : () => _useCurrentLocation(controller, isStart),
+              onTap: _isGettingLocation || isDisabled
+                  ? null
+                  : () => _useCurrentLocation(isStart, stopIndex: stopIndex),
               child: Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  color: iconColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  _isGettingLocation ? Icons.hourglass_empty : Icons.my_location,
-                  color: iconColor,
-                  size: 20,
-                ),
+                child: _isGettingLocation
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                        ),
+                      )
+                    : Icon(
+                        icon,
+                        color: iconColor,
+                        size: 20,
+                      ),
               ),
             ),
             
-            const SizedBox(width: 16),
-            
-            // Text Field - SIMPLIFIED: No duplicate icon
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isDisabled 
-                      ? const Color(0xFF3A3A3C).withOpacity(0.5)
-                      : const Color(0xFF3A3A3C),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFF48484A),
-                    width: 1,
+            // Saved address chips stacked vertically below the icon
+            if (!isDisabled && _savedAddresses.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ..._savedAddresses.take(2).map((address) => 
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: GestureDetector(
+                    onTap: () => _selectSavedAddress(address, isStart, stopIndex: stopIndex),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2E7D32).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF2E7D32).withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        address.addressType == SavedAddressType.home
+                            ? Icons.home
+                            : address.addressType == SavedAddressType.work
+                                ? Icons.business
+                                : Icons.place,
+                        color: const Color(0xFF2E7D32),
+                        size: 16,
+                      ),
+                    ),
                   ),
                 ),
-                child: TextField(
-                  controller: controller,
-                  enabled: !isDisabled,
-                  style: TextStyle(
-                    color: isDisabled ? Colors.grey[500] : Colors.white,
-                    fontSize: 16,
+              ).toList(),
+            ],
+          ],
+        ),
+        
+        const SizedBox(width: 16),
+        
+        // Right side: Autocomplete text field
+        Expanded(
+          child: isDisabled
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3A3A3C).withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFF48484A),
+                      width: 1,
+                    ),
                   ),
-                  decoration: InputDecoration(
-                    hintText: label,
-                    hintStyle: TextStyle(
+                  child: Text(
+                    label,
+                    style: TextStyle(
                       color: Colors.grey[500],
                       fontSize: 16,
                     ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
                   ),
-                  onTap: !isDisabled ? () => _showAutocompleteSuggestions(controller, isStart) : null,
-                  readOnly: true, // Make it read-only, handle taps manually
+                )
+              : AutocompleteTextField(
+                  controller: controller,
+                  hint: label,
+                  icon: Icons.search,
+                  iconColor: Colors.transparent, // Hide the icon since we have it on the left
+                  enabled: true,
+                  onPlaceSelected: (placeDetails) {
+                    // Update the appropriate address storage
+                    if (isStart) {
+                      _startLocationAddress = placeDetails.formattedAddress;
+                      // Update controller with business name or shortened address
+                      controller.text = placeDetails.name.isNotEmpty 
+                          ? placeDetails.name 
+                          : _formatShortAddress(placeDetails.formattedAddress);
+                    } else if (stopIndex != null) {
+                      if (stopIndex < _stopAddresses.length) {
+                        _stopAddresses[stopIndex] = placeDetails.formattedAddress;
+                      } else {
+                        _stopAddresses.add(placeDetails.formattedAddress);
+                      }
+                      controller.text = placeDetails.name.isNotEmpty 
+                          ? placeDetails.name 
+                          : _formatShortAddress(placeDetails.formattedAddress);
+                    } else {
+                      _endLocationAddress = placeDetails.formattedAddress;
+                      controller.text = placeDetails.name.isNotEmpty 
+                          ? placeDetails.name 
+                          : _formatShortAddress(placeDetails.formattedAddress);
+                    }
+                  },
                 ),
-              ),
-            ),
-          ],
         ),
       ],
     );
   }
 
-  // MARK: - Saved Address Chips
-  Widget _buildSavedAddressChips(bool isForStart) {
-    return Container(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _savedAddresses.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final address = _savedAddresses[index];
-          return _buildSavedAddressChip(address, isForStart);
-        },
-      ),
-    );
+  // Helper method to format addresses into shorter display text
+  String _formatShortAddress(String fullAddress) {
+    // Extract just the street address or first part
+    final parts = fullAddress.split(',');
+    if (parts.isNotEmpty) {
+      return parts[0].trim();
+    }
+    return fullAddress;
   }
 
-  Widget _buildSavedAddressChip(SavedAddress address, bool isForStart) {
-    IconData chipIcon;
-    switch (address.addressType) {
-      case SavedAddressType.home:
-        chipIcon = Icons.home;
-        break;
-      case SavedAddressType.work:
-        chipIcon = Icons.business;
-        break;
-      default:
-        chipIcon = Icons.place;
+  // Updated method to select saved address
+  void _selectSavedAddress(SavedAddress address, bool isForStart, {int? stopIndex}) {
+    if (isForStart) {
+      _startLocationController.text = address.displayName.isNotEmpty 
+          ? address.displayName 
+          : address.label;
+      _startLocationAddress = address.fullAddress;
+      
+      // If round trip is enabled, also update end location
+      if (_isRoundTrip) {
+        _endLocationController.text = _startLocationController.text;
+        _endLocationAddress = _startLocationAddress;
+      }
+    } else if (stopIndex != null && stopIndex < _stopControllers.length) {
+      _stopControllers[stopIndex].text = address.displayName.isNotEmpty 
+          ? address.displayName 
+          : address.label;
+      if (stopIndex < _stopAddresses.length) {
+        _stopAddresses[stopIndex] = address.fullAddress;
+      } else {
+        _stopAddresses.add(address.fullAddress);
+      }
+    } else {
+      _endLocationController.text = address.displayName.isNotEmpty 
+          ? address.displayName 
+          : address.label;
+      _endLocationAddress = address.fullAddress;
     }
+  }
 
-    return GestureDetector(
-      onTap: () => _selectSavedAddress(address, isForStart),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2E7D32).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: const Color(0xFF2E7D32).withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: Icon(
-          chipIcon,
-          color: const Color(0xFF2E7D32),
-          size: 20,
+  // MARK: - Current Location with Reverse Geocoding
+  Future<void> _useCurrentLocation(bool isForStart, {int? stopIndex}) async {
+    setState(() {
+      _isGettingLocation = true;
+    });
+
+    try {
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationError('Location permissions are denied');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationError(
+          'Location permissions are permanently denied. Please enable in settings.');
+        return;
+      }
+
+      // Get current position
+      final Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+
+      // Format coordinates
+      final coordinates = '${position.latitude},${position.longitude}';
+      
+      // Try to get a friendly name via reverse geocoding
+      final friendlyName = await _reverseGeocode(position.latitude, position.longitude);
+      
+      // Update the appropriate field
+      if (isForStart) {
+        _startLocationController.text = friendlyName;
+        _startLocationAddress = coordinates; // Keep actual coordinates for routing
+        
+        if (_isRoundTrip) {
+          _endLocationController.text = friendlyName;
+          _endLocationAddress = coordinates;
+        }
+      } else if (stopIndex != null && stopIndex < _stopControllers.length) {
+        _stopControllers[stopIndex].text = friendlyName;
+        if (stopIndex < _stopAddresses.length) {
+          _stopAddresses[stopIndex] = coordinates;
+        } else {
+          _stopAddresses.add(coordinates);
+        }
+      } else {
+        _endLocationController.text = friendlyName;
+        _endLocationAddress = coordinates;
+      }
+      
+      print('📍 Using current location: $friendlyName ($coordinates)');
+      
+    } catch (e) {
+      print('❌ Error getting location: $e');
+      _showLocationError('Unable to get current location');
+    } finally {
+      setState(() {
+        _isGettingLocation = false;
+      });
+    }
+  }
+
+  // Reverse geocode coordinates to get a friendly name
+  Future<String> _reverseGeocode(double latitude, double longitude) async {
+    try {
+      final String apiKey = EnvironmentConfig.apiKey;  // FIXED: Use correct API key reference
+      final String url = 'https://maps.googleapis.com/maps/api/geocode/json'
+          '?latlng=$latitude,$longitude'
+          '&key=$apiKey';
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          // Look for the best name to display
+          final results = data['results'] as List;
+          
+          // Priority 1: Look for a point of interest (business/landmark)
+          for (final result in results) {
+            final types = result['types'] as List;
+            if (types.contains('point_of_interest') || 
+                types.contains('establishment') ||
+                types.contains('park') ||
+                types.contains('airport') ||
+                types.contains('transit_station')) {
+              // Extract the name from the first address component or formatted address
+              final addressComponents = result['address_components'] as List;
+              if (addressComponents.isNotEmpty) {
+                return addressComponents[0]['long_name'] ?? result['formatted_address'];
+              }
+            }
+          }
+          
+          // Priority 2: Use street address (shortened)
+          final firstResult = results[0];
+          final formattedAddress = firstResult['formatted_address'] as String;
+          
+          // Check if it's a specific address
+          if (formattedAddress.contains(RegExp(r'^\d+'))) {
+            // Has a street number, return just the street address
+            final parts = formattedAddress.split(',');
+            if (parts.isNotEmpty) {
+              return parts[0].trim(); // Return just "123 Main St"
+            }
+          }
+          
+          // Priority 3: Use neighborhood or locality
+          for (final result in results) {
+            final types = result['types'] as List;
+            if (types.contains('neighborhood') || types.contains('locality')) {
+              final addressComponents = result['address_components'] as List;
+              if (addressComponents.isNotEmpty) {
+                return addressComponents[0]['long_name'];
+              }
+            }
+          }
+          
+          // Priority 4: Return shortened address
+          final parts = formattedAddress.split(',');
+          if (parts.length >= 2) {
+            return '${parts[0]}, ${parts[1]}'.trim();
+          }
+          return parts[0].trim();
+        }
+      }
+    } catch (e) {
+      print('❌ Reverse geocoding error: $e');
+    }
+    
+    // Fallback to coordinates if reverse geocoding fails
+    return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  }
+
+  // Show location error
+  void _showLocationError(String message) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );
@@ -368,142 +573,81 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // MARK: - Stops Section
   List<Widget> _buildStopsSection() {
-    List<Widget> stopWidgets = [];
+    List<Widget> stops = [];
     
     for (int i = 0; i < _stopControllers.length; i++) {
-      stopWidgets.add(_buildStopInput(i));
-      if (i < _stopControllers.length - 1) {
-        stopWidgets.add(const SizedBox(height: 16));
-        stopWidgets.add(_buildConnectorLine());
-        stopWidgets.add(const SizedBox(height: 16));
-      }
-    }
-    
-    // Add "Add Stop" button
-    if (stopWidgets.isNotEmpty) {
-      stopWidgets.add(const SizedBox(height: 16));
-    }
-    stopWidgets.add(_buildAddStopButton());
-    
-    return stopWidgets;
-  }
-
-  Widget _buildStopInput(int index) {
-    return Row(
-      children: [
-        // Stop number - CLEANED UP: Just the number, no duplicate pin icon
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: const Color(0xFF007AFF).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Text(
-              '${index + 1}',
-              style: const TextStyle(
-                color: Color(0xFF007AFF),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-        
-        const SizedBox(width: 16),
-        
-        // Text Field - SIMPLIFIED: No AutocompleteTextField, just regular TextField
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3A3A3C),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: const Color(0xFF48484A),
-                width: 1,
-              ),
-            ),
-            child: TextField(
-              controller: _stopControllers[index],
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Stop ${index + 1}',
-                hintStyle: TextStyle(
-                  color: Colors.grey[500],
-                  fontSize: 16,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onTap: () => _showAutocompleteSuggestions(_stopControllers[index], false, stopIndex: index),
-              readOnly: true,
-            ),
-          ),
-        ),
-        
-        const SizedBox(width: 12),
-        
-        // Remove button
-        GestureDetector(
-          onTap: () => _removeStop(index),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.close,
-              color: Colors.red,
-              size: 16,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAddStopButton() {
-    return GestureDetector(
-      onTap: _addStop,
-      child: Container(
-        width: double.infinity,
-        height: 48,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2E7D32).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF2E7D32).withOpacity(0.3),
-            width: 1,
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+      stops.add(
+        Column(
           children: [
-            Icon(
-              Icons.add,
-              color: Color(0xFF2E7D32),
-              size: 20,
+            _buildLocationSection(
+              label: 'Stop ${i + 1}',
+              controller: _stopControllers[i],
+              icon: Icons.flag,
+              iconColor: Colors.orange,
+              isStart: false,
+              stopIndex: i,
             ),
-            SizedBox(width: 8),
-            Text(
-              'Add Stop',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            const SizedBox(height: 16),
+            _buildConnectorLine(),
+            const SizedBox(height: 16),
           ],
+        ),
+      );
+    }
+    
+    // Add Stop button
+    stops.add(
+      GestureDetector(
+        onTap: _addStop,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2E7D32).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF2E7D32).withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Add Stop',
+                style: TextStyle(
+                  color: Color(0xFF2E7D32),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+    
+    return stops;
+  }
+
+  // MARK: - Add Stop
+  void _addStop() {
+    setState(() {
+      _stopControllers.add(TextEditingController());
+    });
   }
 
   // MARK: - Settings Section
@@ -513,27 +657,19 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         children: [
           // Round Trip Toggle
-          _buildToggleRow(
-            icon: Icons.refresh,
+          _buildToggleOption(
+            icon: Icons.loop,
             title: 'Round Trip',
             subtitle: 'Return to starting location',
             value: _isRoundTrip,
             onChanged: (value) {
               setState(() {
                 _isRoundTrip = value;
-                if (value) {
-                  // FIXED: Set end location to start location display name for round trip
+                if (_isRoundTrip) {
                   _endLocationController.text = _startLocationController.text;
                   _endLocationAddress = _startLocationAddress;
                 } else {
@@ -542,57 +678,53 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 }
               });
             },
-            activeColor: const Color(0xFF2E7D32),
           ),
           
-          const SizedBox(height: 20),
+          const Divider(height: 32, color: Color(0xFF48484A)),
           
           // Traffic Toggle
-          _buildToggleRow(
+          _buildToggleOption(
             icon: Icons.traffic,
             title: 'Consider Traffic',
             subtitle: 'Include current traffic conditions',
             value: _includeTraffic,
+            activeColor: const Color(0xFF8B4513),
             onChanged: (value) {
               setState(() {
                 _includeTraffic = value;
               });
             },
-            activeColor: const Color(0xFF8B4513),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildToggleRow({
+  // MARK: - Toggle Option Widget
+  Widget _buildToggleOption({
     required IconData icon,
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
-    required Color activeColor,
+    required Function(bool) onChanged,
+    Color? activeColor,
   }) {
     return Row(
       children: [
-        // Icon
         Container(
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: activeColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(10),
+            color: (activeColor ?? const Color(0xFF2E7D32)).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: activeColor,
+            color: activeColor ?? const Color(0xFF2E7D32),
             size: 20,
           ),
         ),
-        
         const SizedBox(width: 16),
-        
-        // Title and subtitle
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -605,6 +737,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
                 style: TextStyle(
@@ -615,15 +748,10 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             ],
           ),
         ),
-        
-        // Toggle switch
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.white,
-          activeTrackColor: activeColor,
-          inactiveThumbColor: Colors.grey[300],
-          inactiveTrackColor: Colors.grey[600],
+          activeColor: activeColor ?? const Color(0xFF2E7D32),
         ),
       ],
     );
@@ -631,360 +759,146 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // MARK: - Optimize Button
   Widget _buildOptimizeButton() {
-    final bool canOptimize = _startLocationController.text.isNotEmpty && 
-                             (_endLocationController.text.isNotEmpty || _isRoundTrip) &&
-                             _stopControllers.any((controller) => controller.text.isNotEmpty);
-    
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: canOptimize
-            ? const LinearGradient(
-                colors: [Color(0xFF2E7D32), Color(0xFF8B4513)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              )
-            : null,
-        color: canOptimize ? null : Colors.grey[700],
-      ),
-      child: ElevatedButton(
-        onPressed: canOptimize && !_isOptimizing ? _optimizeRoute : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+    final bool canOptimize = _startLocationController.text.isNotEmpty &&
+        (_isRoundTrip || _endLocationController.text.isNotEmpty);
+
+    return GestureDetector(
+      onTap: canOptimize && !_isOptimizing ? _optimizeRoute : null,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: canOptimize
+              ? const Color(0xFF2E7D32)
+              : const Color(0xFF2E7D32).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: _isOptimizing
-            ? const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    'Optimizing...',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.map,
+        child: Center(
+          child: _isOptimizing
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
                     color: Colors.white,
-                    size: 20,
+                    strokeWidth: 2,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    canOptimize ? 'Optimize Route' : 'Enter locations to optimize',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                )
+              : const Text(
+                  'Optimize Route',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              ),
+                ),
+        ),
       ),
     );
   }
 
-  // MARK: - Helper Methods
-
-  void _addStop() {
-    setState(() {
-      _stopControllers.add(TextEditingController());
-      _stopAddresses.add('');
-    });
-  }
-
-  void _removeStop(int index) {
-    setState(() {
-      _stopControllers[index].dispose();
-      _stopControllers.removeAt(index);
-      if (index < _stopAddresses.length) {
-        _stopAddresses.removeAt(index);
-      }
-    });
-  }
-
-  void _selectSavedAddress(SavedAddress address, bool isForStart) {
-    if (isForStart) {
-      _startLocationController.text = address.displayName.isNotEmpty 
-          ? address.displayName 
-          : address.label;
-      _startLocationAddress = address.fullAddress;
-      
-      // If round trip is enabled, also update end location
-      if (_isRoundTrip) {
-        _endLocationController.text = _startLocationController.text;
-        _endLocationAddress = _startLocationAddress;
-      }
-    } else {
-      _endLocationController.text = address.displayName.isNotEmpty 
-          ? address.displayName 
-          : address.label;
-      _endLocationAddress = address.fullAddress;
-    }
-  }
-
-  // MARK: - Autocomplete Suggestions (Simplified)
-  void _showAutocompleteSuggestions(TextEditingController controller, bool isStart, {int? stopIndex}) {
-    // For now, just show a simple input dialog
-    // In a full implementation, you'd show an autocomplete overlay
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF2C2C2E),
-        title: Text(
-          isStart ? 'Enter Starting Location' : 
-          stopIndex != null ? 'Enter Stop ${stopIndex + 1}' : 'Enter Destination',
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: TextField(
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: 'Search for a place...',
-            hintStyle: TextStyle(color: Colors.grey[500]),
-          ),
-          onSubmitted: (value) {
-            if (value.isNotEmpty) {
-              controller.text = value;
-              
-              if (isStart) {
-                _startLocationAddress = value;
-                if (_isRoundTrip) {
-                  _endLocationController.text = value;
-                  _endLocationAddress = value;
-                }
-              } else if (stopIndex != null) {
-                while (_stopAddresses.length <= stopIndex) {
-                  _stopAddresses.add('');
-                }
-                _stopAddresses[stopIndex] = value;
-              } else {
-                _endLocationAddress = value;
-              }
-            }
-            Navigator.of(context).pop();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF2E7D32))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _useCurrentLocation(TextEditingController controller, bool isForStart) async {
-    setState(() {
-      _isGettingLocation = true;
-    });
-
-    try {
-      // Check location permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Location permissions are denied');
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied');
-      }
-
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // For now, just set coordinates as text (you could reverse geocode to get address)
-      final locationText = 'Current Location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
-      
-      controller.text = locationText;
-      
-      if (isForStart) {
-        _startLocationAddress = locationText;
-        // FIXED: Update end location for round trip
-        if (_isRoundTrip) {
-          _endLocationController.text = locationText;
-          _endLocationAddress = locationText;
-        }
-      } else {
-        _endLocationAddress = locationText;
-      }
-
-      // Track successful location usage
-      await _analyticsService.trackEvent('current_location_used', details: isForStart ? 'start' : 'end');
-
-    } catch (e) {
-      // Track error
-      await _errorTrackingService.trackLocationError(
-        errorMessage: e.toString(),
-        stackTrace: StackTrace.current,
-      );
-
-      // Show error to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error getting location: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGettingLocation = false;
-        });
-      }
-    }
-  }
-
-  // MARK: - Route Optimization with Enhanced Error Tracking
+  // MARK: - Optimize Route (FIXED)
   Future<void> _optimizeRoute() async {
-    if (_isOptimizing) return;
-    
+    // Validate inputs
+    if (_startLocationController.text.isEmpty) {
+      _showError('Please enter a starting location');
+      return;
+    }
+
+    if (!_isRoundTrip && _endLocationController.text.isEmpty) {
+      _showError('Please enter a destination');
+      return;
+    }
+
     setState(() {
       _isOptimizing = true;
     });
 
     try {
-      // Check usage limits BEFORE route calculation
-      final bool canCalculate = await _usageTrackingService.canPerformRouteCalculation();
-      if (!canCalculate) {
-        if (mounted) {
-          _showUsageLimitDialog();
-        }
-        return;
-      }
-
-      // Use the formatted addresses from autocomplete
-      final String startLocation = _startLocationAddress.isNotEmpty 
-          ? _startLocationAddress 
-          : _startLocationController.text.trim();
-      
-      final String endLocation = _isRoundTrip 
-          ? startLocation 
-          : (_endLocationAddress.isNotEmpty 
-              ? _endLocationAddress 
-              : _endLocationController.text.trim());
-      
-      // Collect valid stops
+      // Prepare locations list
       final List<String> stops = [];
+      final List<String> stopDisplayNames = [];
+      
+      // Add stops
       for (int i = 0; i < _stopControllers.length; i++) {
-        final stopText = _stopControllers[i].text.trim();
-        if (stopText.isNotEmpty) {
-          final stopAddress = (i < _stopAddresses.length && _stopAddresses[i].isNotEmpty)
-              ? _stopAddresses[i]
-              : stopText;
-          stops.add(stopAddress);
+        if (_stopControllers[i].text.isNotEmpty) {
+          if (i < _stopAddresses.length && _stopAddresses[i].isNotEmpty) {
+            stops.add(_stopAddresses[i]);
+          } else {
+            stops.add(_stopControllers[i].text);
+          }
+          stopDisplayNames.add(_stopControllers[i].text);
         }
       }
 
-      // Create original inputs for display names - FIXED: Preserve display names for round trip
+      // Create original inputs for display
       final originalInputs = OriginalRouteInputs(
-        startLocation: startLocation,
-        endLocation: endLocation,
+        startLocation: _startLocationAddress.isNotEmpty 
+            ? _startLocationAddress 
+            : _startLocationController.text,
+        endLocation: _isRoundTrip 
+            ? _startLocationAddress.isNotEmpty 
+                ? _startLocationAddress 
+                : _startLocationController.text
+            : _endLocationAddress.isNotEmpty 
+                ? _endLocationAddress 
+                : _endLocationController.text,
         stops: stops,
-        startLocationDisplayName: _startLocationController.text.trim(),
+        startLocationDisplayName: _startLocationController.text,
         endLocationDisplayName: _isRoundTrip 
-            ? _startLocationController.text.trim()  // Use start location display name for round trip
-            : _endLocationController.text.trim(),
-        stopDisplayNames: _stopControllers
-            .map((controller) => controller.text.trim())
-            .where((text) => text.isNotEmpty)
-            .toList(),
-        includeTraffic: _includeTraffic,
+            ? _startLocationController.text 
+            : _endLocationController.text,
+        stopDisplayNames: stopDisplayNames,
         isRoundTrip: _isRoundTrip,
+        includeTraffic: _includeTraffic,
       );
 
-      // Track route calculation attempt in analytics
-      await _analyticsService.trackEvent(
-        'route_calculation_started',
-        details: '${stops.length + 2} stops',
-      );
-
-      // Calculate optimized route
-      final result = await _routeService.calculateOptimizedRoute(
-        startLocation: startLocation,
-        endLocation: endLocation,
+      print('🚗 Optimizing route with ${stops.length} stops');
+      
+      // FIXED: Use correct method name
+      final optimizedRoute = await _routeService.calculateOptimizedRoute(
+        startLocation: originalInputs.startLocation,
+        endLocation: originalInputs.endLocation,
         stops: stops,
         originalInputs: originalInputs,
       );
 
-      // On SUCCESS - Increment usage and track successful calculation
+      // Track usage
       await _usageTrackingService.incrementUsage();
       
+      // FIXED: Use correct analytics method
       await _analyticsService.trackRouteCalculation(
-        stops: [startLocation, ...stops, endLocation],
-        totalDistance: result.totalDistance,
-        totalTime: result.estimatedTime,
+        stops: [
+          originalInputs.startLocation,
+          ...stops,
+          originalInputs.endLocation,
+        ],
+        totalDistance: optimizedRoute.totalDistance,
+        totalTime: optimizedRoute.estimatedTime,
         success: true,
       );
 
-      // Navigate to results screen
+      // FIXED: Navigate with correct parameters
       if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => RouteResultsScreen(
-              routeResult: result,
+              routeResult: optimizedRoute,
               originalInputs: originalInputs,
             ),
           ),
         );
       }
-
     } catch (e) {
-      // Enhanced error tracking
-      await _errorTrackingService.trackRouteCalculationError(
+      print('❌ Route optimization error: $e');
+      _showError('Failed to optimize route. Please try again.');
+      
+      // FIXED: Use correct error tracking method
+      await _errorTrackingService.trackError(
+        errorType: ErrorType.routeCalculation,
         errorMessage: e.toString(),
-        startLocation: _startLocationController.text,
-        endLocation: _endLocationController.text,
-        stops: _stopControllers.map((c) => c.text).toList(),
-        stackTrace: StackTrace.current,
+        location: 'route_input_screen',
       );
-
-      await _analyticsService.trackEvent(
-        'route_calculation_failed',
-        details: e.toString(),
-        success: false,
-        errorMessage: e.toString(),
-      );
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
     } finally {
       if (mounted) {
         setState(() {
@@ -994,31 +908,18 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     }
   }
 
-  void _showUsageLimitDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2E),
-          title: const Text(
-            'Daily Limit Reached',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            'You\'ve reached your daily limit of ${UsageTrackingService.DAILY_LIMIT} route calculations. Your limit will reset at midnight.',
-            style: TextStyle(color: Colors.grey[300]),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text(
-                'OK',
-                style: TextStyle(color: Color(0xFF2E7D32)),
-              ),
-            ),
-          ],
-        );
-      },
+  // MARK: - Error Display
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red[700],
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
     );
   }
 }
