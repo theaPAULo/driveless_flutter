@@ -55,6 +55,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // Address storage for formatted addresses from autocomplete
   String _startLocationAddress = '';
   String _endLocationAddress = '';
+  String _tempEndLocation = '';
+  String _tempEndAddress = '';
   final List<String> _stopAddresses = [];
 
   // Helper to get loading state for a specific field
@@ -130,9 +132,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                     _buildSettingsSection(),
                     
                     const SizedBox(height: 24),
-                    
-                    // Route Summary (if addresses entered)
-                    _buildRouteSummary(),
                     
                     // Optimize Button
                     _buildOptimizeButton(),
@@ -219,13 +218,14 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           
           // End Location Section (only if not round trip)
           if (!_isRoundTrip)
+            // End Location Section (always show, but disabled if round trip)
             _buildLocationSection(
               label: 'Destination',
               controller: _endLocationController,
               icon: Icons.location_on,
               iconColor: const Color(0xFFFF3B30), // iOS red
               isStart: false,
-              isDisabled: false,
+              isDisabled: _isRoundTrip, // This makes it grayed out
             ),
         ],
       ),
@@ -743,13 +743,21 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             value: _isRoundTrip,
             onChanged: (value) {
               setState(() {
+                final previousEndLocation = _endLocationController.text;
+                final previousEndAddress = _endLocationAddress;
+                
                 _isRoundTrip = value;
                 if (_isRoundTrip) {
+                  // Store what was there before
+                  _tempEndLocation = previousEndLocation;
+                  _tempEndAddress = previousEndAddress;
+                  // Show start location in grayed out end field
                   _endLocationController.text = _startLocationController.text;
                   _endLocationAddress = _startLocationAddress;
                 } else {
-                  _endLocationController.clear();
-                  _endLocationAddress = '';
+                  // Restore previous values
+                  _endLocationController.text = _tempEndLocation;
+                  _endLocationAddress = _tempEndAddress;
                 }
               });
             },
@@ -839,49 +847,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // MARK: - Route Summary
-  Widget _buildRouteSummary() {
-    int stopCount = _stopControllers.where((c) => c.text.isNotEmpty).length;
-    bool hasStart = _startLocationController.text.isNotEmpty;
-    bool hasEnd = _endLocationController.text.isNotEmpty || _isRoundTrip;
-    
-    if (!hasStart || !hasEnd) return const SizedBox.shrink();
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF34C759).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF34C759).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.info_outline_rounded,
-            color: const Color(0xFF34C759),
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              stopCount > 0
-                  ? 'Ready to optimize route with $stopCount stop${stopCount > 1 ? 's' : ''}'
-                  : 'Ready to calculate direct route',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // MARK: - Optimize Button
   Widget _buildOptimizeButton() {
