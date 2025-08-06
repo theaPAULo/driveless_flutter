@@ -1,14 +1,14 @@
 // lib/screens/settings_screen.dart
 //
-// Settings screen with theme management and app preferences
-// Matches iOS SettingsView functionality
+// Settings screen with functional theme management and app preferences
+// Now connected to ThemeProvider for immediate theme switching
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
-
-enum AppThemeMode { system, light, dark }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -18,7 +18,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  AppThemeMode _currentTheme = AppThemeMode.dark;
+  // Settings state (theme is now managed by ThemeProvider)
   bool _defaultRoundTrip = false;
   bool _defaultTrafficConsideration = true;
   bool _hapticFeedback = true;
@@ -31,19 +31,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
-  /// Load settings from SharedPreferences
+  /// Load settings from SharedPreferences (excluding theme)
   Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
       setState(() {
-        // Theme preference
-        final themeString = prefs.getString('theme_mode') ?? 'dark';
-        _currentTheme = AppThemeMode.values.firstWhere(
-          (e) => e.name == themeString,
-          orElse: () => AppThemeMode.dark,
-        );
-        
         // Route defaults
         _defaultRoundTrip = prefs.getBool('default_round_trip') ?? false;
         _defaultTrafficConsideration = prefs.getBool('default_traffic_consideration') ?? true;
@@ -66,12 +59,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  /// Save settings to SharedPreferences
+  /// Save settings to SharedPreferences (excluding theme)
   Future<void> _saveSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      await prefs.setString('theme_mode', _currentTheme.name);
       await prefs.setBool('default_round_trip', _defaultRoundTrip);
       await prefs.setBool('default_traffic_consideration', _defaultTrafficConsideration);
       await prefs.setBool('haptic_feedback', _hapticFeedback);
@@ -89,39 +81,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 34,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: false,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text(
-              'Done',
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_back, 
+                color: Theme.of(context).appBarTheme.foregroundColor,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: Text(
+              'Settings',
               style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
+                color: Theme.of(context).appBarTheme.foregroundColor,
+                fontSize: 34,
+                fontWeight: FontWeight.bold,
               ),
             ),
+            centerTitle: false,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    color: Color(0xFF34C759), // Always green
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading ? _buildLoadingState() : _buildSettingsContent(),
+          body: _isLoading ? _buildLoadingState() : _buildSettingsContent(themeProvider),
+        );
+      },
     );
   }
 
@@ -132,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CircularProgressIndicator(
-            color: Color(0xFF2E7D32),
+            color: Color(0xFF34C759),
           ),
           SizedBox(height: 16),
           Text(
@@ -148,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // MARK: - Settings Content
-  Widget _buildSettingsContent() {
+  Widget _buildSettingsContent(ThemeProvider themeProvider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -159,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Appearance',
             icon: Icons.palette_outlined,
             children: [
-              _buildThemeSelector(),
+              _buildThemeSelector(themeProvider),
             ],
           ),
 
@@ -181,8 +180,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _saveSettings();
                 },
               ),
+              const Divider(color: Colors.grey, height: 1),
               _buildSwitchSetting(
-                'Consider Traffic by Default',
+                'Consider Traffic',
                 'Include current traffic in route calculations',
                 _defaultTrafficConsideration,
                 (value) {
@@ -197,9 +197,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // Units & Measurements Section
+          // Distance Unit Section
           _buildSettingsSection(
-            title: 'Units & Measurements',
+            title: 'Units',
             icon: Icons.straighten_outlined,
             children: [
               _buildDistanceUnitSelector(),
@@ -208,14 +208,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 24),
 
-          // User Experience Section
+          // Preferences Section
           _buildSettingsSection(
-            title: 'User Experience',
+            title: 'Preferences',
             icon: Icons.tune_outlined,
             children: [
               _buildSwitchSetting(
                 'Haptic Feedback',
-                'Vibration feedback for interactions',
+                'Feel vibrations for button taps and events',
                 _hapticFeedback,
                 (value) {
                   setState(() {
@@ -232,38 +232,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // About Section
           _buildSettingsSection(
             title: 'About',
-            icon: Icons.info_outlined,
+            icon: Icons.info_outline,
             children: [
-              _buildInfoItem('App Version', '1.0.0 (Flutter)'),
-              _buildInfoItem('Platform', 'Android'),
-              _buildInfoItem('Build', 'Development'),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Reset Section
-          _buildSettingsSection(
-            title: 'Reset',
-            icon: Icons.restore_outlined,
-            children: [
-              _buildActionItem(
-                'Reset to Defaults',
-                'Restore all settings to default values',
-                Icons.restart_alt,
-                _resetToDefaults,
-                Colors.orange,
-              ),
+              _buildInfoItem('Version', '1.0.0'),
+              const Divider(color: Colors.grey, height: 1),
+              _buildInfoItem('Build', '1'),
             ],
           ),
 
           const SizedBox(height: 40),
+
+          // Reset Button
+          _buildResetButton(),
         ],
       ),
     );
   }
 
-  // MARK: - Settings Section
+  // MARK: - Settings Section Builder
   Widget _buildSettingsSection({
     required String title,
     required IconData icon,
@@ -271,30 +257,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Section Header
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(icon, color: const Color(0xFF2E7D32)),
+                Icon(
+                  icon, 
+                  color: const Color(0xFF34C759),
+                  size: 24,
+                ),
                 const SizedBox(width: 12),
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -310,144 +293,121 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // MARK: - Theme Selector
-  Widget _buildThemeSelector() {
-    return Column(
-      children: [
-        _buildThemeOption(
-          'System',
-          'Use device theme setting',
-          AppThemeMode.system,
-          Icons.brightness_auto,
-        ),
-        _buildThemeOption(
-          'Light',
-          'Light theme',
-          AppThemeMode.light,
-          Icons.brightness_7,
-        ),
-        _buildThemeOption(
-          'Dark',
-          'Dark theme',
-          AppThemeMode.dark,
-          Icons.brightness_2,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeOption(String title, String subtitle, AppThemeMode mode, IconData icon) {
-    final isSelected = _currentTheme == mode;
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          setState(() {
-            _currentTheme = mode;
-          });
-          _saveSettings();
-          _showThemeChangeNote();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[600],
-                size: 24,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[300],
-                        fontSize: 16,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (isSelected)
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF2E7D32),
-                  size: 20,
-                ),
-            ],
+  // MARK: - Theme Selector (Now functional!)
+  Widget _buildThemeSelector(ThemeProvider themeProvider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Theme',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
+          const SizedBox(height: 12),
+          
+          // Theme options as iOS-style capsule buttons
+          Row(
+            children: AppThemeMode.values.map((theme) {
+              final isSelected = themeProvider.currentTheme == theme;
+              
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () async {
+                      await themeProvider.setTheme(theme);
+                      // Show success message
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Theme changed to ${theme.displayName}'),
+                            backgroundColor: const Color(0xFF34C759),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected 
+                          ? const Color(0xFF34C759)
+                          : Colors.grey.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            theme.icon,
+                            color: isSelected 
+                              ? Colors.white 
+                              : Theme.of(context).textTheme.bodyMedium?.color,
+                            size: 20,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            theme.displayName,
+                            style: TextStyle(
+                              color: isSelected 
+                                ? Colors.white 
+                                : Theme.of(context).textTheme.bodyMedium?.color,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ),
     );
   }
 
   // MARK: - Distance Unit Selector
   Widget _buildDistanceUnitSelector() {
-    return Column(
-      children: [
-        _buildUnitOption('Miles', 'miles'),
-        _buildUnitOption('Kilometers', 'kilometers'),
-      ],
-    );
-  }
-
-  Widget _buildUnitOption(String title, String unit) {
-    final isSelected = _defaultDistanceUnit == unit;
-    
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          setState(() {
-            _defaultDistanceUnit = unit;
-          });
-          _saveSettings();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(
-                Icons.straighten,
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[600],
-                size: 24,
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.grey[300],
-                    fontSize: 16,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-              if (isSelected)
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF2E7D32),
-                  size: 20,
-                ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Distance Unit',
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+              fontSize: 16,
+            ),
           ),
-        ),
+          DropdownButton<String>(
+            value: _defaultDistanceUnit,
+            dropdownColor: Theme.of(context).cardTheme.color,
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+              fontSize: 16,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'miles', child: Text('Miles')),
+              DropdownMenuItem(value: 'kilometers', child: Text('Kilometers')),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _defaultDistanceUnit = value;
+                });
+                _saveSettings();
+              }
+            },
+          ),
+        ],
       ),
     );
   }
@@ -459,8 +419,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     bool value,
     Function(bool) onChanged,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Expanded(
@@ -469,17 +429,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.grey[500],
+                    color: Colors.grey[600],
                     fontSize: 14,
                   ),
                 ),
@@ -489,10 +449,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFF2E7D32),
-            activeTrackColor: const Color(0xFF2E7D32).withOpacity(0.3),
-            inactiveThumbColor: Colors.grey[600],
-            inactiveTrackColor: Colors.grey[800],
+            activeColor: const Color(0xFF34C759),
+            inactiveThumbColor: Colors.grey[400],
+            inactiveTrackColor: Colors.grey[300],
           ),
         ],
       ),
@@ -501,22 +460,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // MARK: - Info Item
   Widget _buildInfoItem(String title, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyLarge?.color,
               fontSize: 16,
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              color: Colors.grey[400],
+              color: Colors.grey[600],
               fontSize: 16,
             ),
           ),
@@ -525,54 +484,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // MARK: - Action Item
-  Widget _buildActionItem(
-    String title,
-    String subtitle,
-    IconData icon,
-    VoidCallback onTap,
-    Color color,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Row(
-            children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.grey[600],
-                size: 16,
-              ),
-            ],
+  // MARK: - Reset Button
+  Widget _buildResetButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _resetToDefaults,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: const Text(
+          'Reset to Defaults',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
@@ -580,74 +510,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // MARK: - Helper Methods
-
-  void _showThemeChangeNote() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Theme will change on next app restart'),
-        backgroundColor: Color(0xFF2E7D32),
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
   void _resetToDefaults() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2E),
-          title: const Text(
+          backgroundColor: Theme.of(context).cardTheme.color,
+          title: Text(
             'Reset Settings',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
           ),
           content: Text(
             'Are you sure you want to reset all settings to their default values?',
-            style: TextStyle(color: Colors.grey[400]),
+            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text(
                 'Cancel',
-                style: TextStyle(color: Color(0xFF007AFF)),
+                style: TextStyle(color: Colors.grey),
               ),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _performReset();
+              onPressed: () async {
+                // Reset theme to dark
+                final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+                await themeProvider.setTheme(AppThemeMode.dark);
+                
+                // Reset other settings
+                setState(() {
+                  _defaultRoundTrip = false;
+                  _defaultTrafficConsideration = true;
+                  _hapticFeedback = true;
+                  _defaultDistanceUnit = 'miles';
+                });
+                
+                await _saveSettings();
+                
+                if (mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Settings reset to defaults'),
+                      backgroundColor: Color(0xFF34C759),
+                    ),
+                  );
+                }
               },
               child: const Text(
                 'Reset',
-                style: TextStyle(color: Colors.orange),
+                style: TextStyle(color: Colors.red),
               ),
             ),
           ],
         );
       },
     );
-  }
-
-  Future<void> _performReset() async {
-    setState(() {
-      _currentTheme = AppThemeMode.dark;
-      _defaultRoundTrip = false;
-      _defaultTrafficConsideration = true;
-      _hapticFeedback = true;
-      _defaultDistanceUnit = 'miles';
-    });
-
-    await _saveSettings();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Settings reset to defaults'),
-          backgroundColor: Color(0xFF2E7D32),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
   }
 }
