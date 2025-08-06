@@ -163,7 +163,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Optimize your multi-stop journey',
+            'Drive Less, Save Time',
             style: TextStyle(
               color: Colors.grey[500],
               fontSize: 16,
@@ -194,25 +194,23 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             label: 'Starting location',
             controller: _startLocationController,
             icon: Icons.location_on,
-            iconColor: const Color(0xFF34C759), // iOS green
+            iconColor: const Color(0xFF335233), // iOS earthy green
             isStart: true,
           ),
           
-          // Show connector line and spacing when we have content below
-          if (_stopControllers.isNotEmpty || true) ...[
-            const SizedBox(height: 16), // Improved spacing
-            _buildConnectorLine(),
-            const SizedBox(height: 16),
-          ],
+          // FIXED: Consistent spacing regardless of round trip state
+          const SizedBox(height: 20), // More space before connector
+          _buildConnectorLine(),
+          const SizedBox(height: 20), // More space after connector
           
           // Stops Section
           ..._buildStopsSection(),
           
           // Add connector line if we have stops before destination
           if (_stopControllers.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Consistent spacing
             _buildConnectorLine(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20), // Consistent spacing
           ],
           
           // FIXED: End Location Section (ALWAYS show, but disabled when round trip)
@@ -220,7 +218,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             label: _isRoundTrip ? 'Return to start' : 'Destination',
             controller: _endLocationController,
             icon: Icons.location_on,
-            iconColor: const Color(0xFFFF3B30), // iOS red
+            iconColor: const Color(0xFFCC5500), // iOS red-brown for destination
             isStart: false,
             isDisabled: _isRoundTrip, // This makes it grayed out but still visible
           ),
@@ -236,9 +234,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         const SizedBox(width: 28), // Align with icon position
         Container(
           width: 2,
-          height: 24, // Slightly taller for better visual balance
+          height: 28, // Increased height for better visual balance 
           decoration: BoxDecoration(
-            color: Colors.grey[700],
+            color: Colors.grey[600], // Slightly lighter for better contrast
             borderRadius: BorderRadius.circular(1),
           ),
         ),
@@ -258,34 +256,36 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           label: 'Stop ${i + 1}',
           controller: _stopControllers[i],
           icon: Icons.location_on,
-          iconColor: const Color(0xFF8B4513), // Brown color for stops
+          iconColor: const Color(0xFF664C33), // iOS earthy brown for stops
           isStart: false,
           stopIndex: i,
         ),
       );
       
-      // Add connector line between stops
+      // Add connector line between stops with consistent spacing
       if (i < _stopControllers.length - 1) {
         stops.addAll([
-          const SizedBox(height: 16),
+          const SizedBox(height: 20), // Consistent spacing
           _buildConnectorLine(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20), // Consistent spacing
         ]);
       }
     }
     
-    // Add "Add Stop" button with better spacing
-    if (!_isRoundTrip) { // Only show Add Stop if not round trip
-      if (_stopControllers.isNotEmpty) {
-        stops.addAll([
-          const SizedBox(height: 16),
-          _buildConnectorLine(),
-          const SizedBox(height: 16),
-        ]);
-      }
-      
-      stops.add(
-        GestureDetector(
+    // FIXED: Add "Add Stop" button ALWAYS with proper spacing
+    if (_stopControllers.isNotEmpty) {
+      stops.addAll([
+        const SizedBox(height: 20), // Consistent spacing before connector
+        _buildConnectorLine(),
+        const SizedBox(height: 20), // Consistent spacing after connector
+      ]);
+    }
+    
+    // Add Stop button with better styling and consistent spacing
+    stops.add(
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0), // Consistent padding above/below
+        child: GestureDetector(
           onTap: _addStop,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -294,7 +294,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 width: 28,
                 height: 28,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF34C759),
+                  color: Color(0xFF335233), // Match earthy green theme
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -307,7 +307,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               const Text(
                 'Add Stop',
                 style: TextStyle(
-                  color: Color(0xFF34C759),
+                  color: Color(0xFF335233), // Match earthy green theme
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -315,8 +315,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
     
     return stops;
   }
@@ -362,7 +362,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Saved address chips - horizontal row above the input field
+        // Saved address chips - horizontal row above the input field  
         if (!isDisabled && _savedAddresses.isNotEmpty) ...[
           Container(
             height: 36,
@@ -372,6 +372,26 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               itemCount: _savedAddresses.length,
               itemBuilder: (context, index) {
                 final address = _savedAddresses[index];
+                
+                // Get proper icon and color based on address type
+                IconData addressIcon;
+                Color addressColor;
+                
+                switch (address.addressType) {
+                  case SavedAddressType.home:
+                    addressIcon = Icons.home;
+                    addressColor = const Color(0xFF335233); // Green for home
+                    break;
+                  case SavedAddressType.work:
+                    addressIcon = Icons.business;
+                    addressColor = const Color(0xFF1976D2); // Blue for work
+                    break;
+                  case SavedAddressType.custom:
+                    addressIcon = Icons.place;
+                    addressColor = const Color(0xFF7B1FA2); // Purple for custom
+                    break;
+                }
+                
                 return Padding(
                   padding: EdgeInsets.only(
                     right: 8,
@@ -384,33 +404,20 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                       stopIndex: stopIndex,
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: iconColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(18),
+                        color: addressColor.withOpacity(0.1),
+                        shape: BoxShape.circle,
                         border: Border.all(
-                          color: iconColor.withOpacity(0.3),
+                          color: addressColor.withOpacity(0.3),
                           width: 1,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.push_pin,
-                            color: iconColor,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            address.displayName.isNotEmpty ? address.displayName : address.label,
-                            style: TextStyle(
-                              color: iconColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: Icon(
+                        addressIcon, // Use proper address type icon
+                        color: addressColor,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -423,18 +430,29 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         // Location input field
         Row(
           children: [
-            // Location pin icon
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: iconColor,
-                size: 16,
+            // Location pin icon - NOW CLICKABLE for "Use Current Location"
+            GestureDetector(
+              onTap: controller.text.isEmpty && !isDisabled ? () => _useCurrentLocation(isStart, stopIndex: stopIndex) : null,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: (controller.text.isEmpty && !isDisabled) 
+                      ? iconColor.withOpacity(0.1) 
+                      : iconColor.withOpacity(0.05),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: (controller.text.isEmpty && !isDisabled)
+                        ? iconColor.withOpacity(0.3)
+                        : iconColor.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  icon,
+                  color: (controller.text.isEmpty && !isDisabled) ? iconColor : iconColor.withOpacity(0.5),
+                  size: 16,
+                ),
               ),
             ),
             
@@ -546,7 +564,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                       ),
             ),
             
-            // Add remove button for stops
+            // Add remove button for stops only
             if (stopIndex != null) ...[
               const SizedBox(width: 8),
               GestureDetector(
@@ -568,35 +586,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             ],
           ],
         ),
-        
-        // "Use current location" button - only show when field is empty and not disabled
-        if (controller.text.isEmpty && !isDisabled && !_isLoadingLocation(fieldId)) ...[
-          const SizedBox(height: 12),
-          GestureDetector(
-            onTap: () => _useCurrentLocation(isStart, stopIndex: stopIndex),
-            child: Padding(
-              padding: const EdgeInsets.only(left: 44), // Align with text field
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.my_location,
-                    color: const Color(0xFF34C759),
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Use current location',
-                    style: TextStyle(
-                      color: Color(0xFF34C759),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -753,6 +742,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             title: 'Round Trip',
             subtitle: 'Return to starting location',
             value: _isRoundTrip,
+            activeColor: const Color(0xFF335233), // Use earthy green
             onChanged: (value) {
               setState(() {
                 _isRoundTrip = value;
@@ -784,7 +774,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             title: 'Consider Traffic',
             subtitle: 'Include current traffic conditions',
             value: _includeTraffic,
-            activeColor: const Color(0xFFFF9500), // iOS orange
+            activeColor: const Color(0xFF664C33), // iOS earthy brown for traffic
             onChanged: (value) {
               setState(() {
                 _includeTraffic = value;
@@ -811,12 +801,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: (activeColor ?? const Color(0xFF34C759)).withOpacity(0.1),
+            color: (activeColor ?? const Color(0xFF335233)).withOpacity(0.1), // Use earthy green as default
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: activeColor ?? const Color(0xFF34C759),
+            color: activeColor ?? const Color(0xFF335233), // Use earthy green as default
             size: 20,
           ),
         ),
@@ -851,8 +841,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: activeColor ?? const Color(0xFF34C759),
-          activeTrackColor: (activeColor ?? const Color(0xFF34C759)).withOpacity(0.3),
+          activeColor: activeColor ?? const Color(0xFF335233), // Use earthy green as default
+          activeTrackColor: (activeColor ?? const Color(0xFF335233)).withOpacity(0.3),
           inactiveThumbColor: Colors.grey[400],
           inactiveTrackColor: Colors.grey[800],
         ),
@@ -860,20 +850,50 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // MARK: - Optimize Button
+  // MARK: - Optimize Button with iOS-style Gradient
   Widget _buildOptimizeButton() {
     final bool canOptimize = _startLocationAddress.isNotEmpty && 
                              (_isRoundTrip || _endLocationAddress.isNotEmpty); // Allow round trip with just start
     
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 56,
+      decoration: BoxDecoration(
+        gradient: canOptimize 
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF335233), // Dark forest green
+                  Color(0xFF4A7C4A), // Lighter green
+                  Color(0xFF2A4A2A), // Darker green at bottom
+                ],
+                stops: [0.0, 0.6, 1.0],
+              )
+            : LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.grey[700]!,
+                  Colors.grey[800]!,
+                ],
+              ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: canOptimize ? [
+          BoxShadow(
+            color: const Color(0xFF335233).withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ] : [],
+      ),
       child: ElevatedButton(
         onPressed: canOptimize && !_isOptimizing ? _optimizeRoute : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: canOptimize ? const Color(0xFF34C759) : Colors.grey[700],
+          backgroundColor: Colors.transparent, // Let gradient show through
           foregroundColor: Colors.white,
           elevation: 0,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
