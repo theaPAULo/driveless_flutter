@@ -1,7 +1,7 @@
 // lib/widgets/autocomplete_text_field.dart
 //
-// Smart address input field with Google Places autocomplete
-// Updated with inline typing and improved UI
+// COMPLETE VERSION: Smart address input with proper suggestion dismissal
+// Fixed to properly dismiss suggestions after selection
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -89,11 +89,20 @@ class AutocompleteTextField extends StatefulWidget {
 
 class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
   final GooglePlacesService _placesService = GooglePlacesService();
+  final FocusNode _focusNode = FocusNode();
+  bool _isSelecting = false; // Flag to prevent re-triggering suggestions
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return TypeAheadField<PlacePrediction>(
       controller: widget.controller,
+      focusNode: _focusNode,
       
       // Configure the text field appearance
       builder: (context, controller, focusNode) {
@@ -106,7 +115,7 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: focusNode.hasFocus 
-                  ? const Color(0xFF2E7D32) // Green border when focused
+                  ? const Color(0xFF34C759) // Green border when focused
                   : const Color(0xFF48484A),
               width: focusNode.hasFocus ? 2 : 1,
             ),
@@ -143,6 +152,7 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
       autoFlipDirection: true,
       direction: VerticalDirection.down,
       hideOnUnfocus: true,
+      hideOnSelect: true, // Automatically hide on selection
       
       // Debounce duration to avoid too many API calls
       debounceDuration: const Duration(milliseconds: 300),
@@ -160,7 +170,7 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(
-                  const Color(0xFF2E7D32),
+                  const Color(0xFF34C759),
                 ),
               ),
             ),
@@ -195,6 +205,9 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
       
       // Suggestions callback - fetch from Google Places API
       suggestionsCallback: (pattern) async {
+        // Don't fetch suggestions if we're in the middle of selecting
+        if (_isSelecting) return [];
+        
         if (pattern.length < 2) return [];
         
         try {
@@ -215,10 +228,19 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () async {
-                // Set the text immediately for better UX
+                // Set the selecting flag to prevent re-triggering
+                setState(() {
+                  _isSelecting = true;
+                });
+                
+                // Immediately unfocus to hide keyboard and suggestions
+                _focusNode.unfocus();
+                FocusManager.instance.primaryFocus?.unfocus();
+                
+                // Set the text immediately for visual feedback
                 widget.controller.text = suggestion.mainText ?? suggestion.description;
                 
-                // Then fetch full place details
+                // Fetch place details in background
                 try {
                   final details = await _placesService.getPlaceDetails(suggestion.placeId);
                   if (details != null && widget.onPlaceSelected != null) {
@@ -226,6 +248,15 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
                   }
                 } catch (e) {
                   print('❌ Error fetching place details: $e');
+                } finally {
+                  // Reset the flag after a delay to allow for new searches
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (mounted) {
+                      setState(() {
+                        _isSelecting = false;
+                      });
+                    }
+                  });
                 }
               },
               child: Container(
@@ -234,7 +265,7 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
                   children: [
                     Icon(
                       Icons.location_on,
-                      color: const Color(0xFF2E7D32),
+                      color: const Color(0xFF34C759),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -275,9 +306,38 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
         );
       },
       
-      // Handle selection
+      // Handle selection - fallback if itemBuilder tap doesn't work
       onSelected: (suggestion) async {
-        // This is already handled in itemBuilder's onTap
+        // Set flag to prevent re-triggering
+        setState(() {
+          _isSelecting = true;
+        });
+        
+        // Unfocus to dismiss keyboard and suggestions
+        _focusNode.unfocus();
+        FocusManager.instance.primaryFocus?.unfocus();
+        
+        // Update text
+        widget.controller.text = suggestion.mainText ?? suggestion.description;
+        
+        // Fetch place details
+        try {
+          final details = await _placesService.getPlaceDetails(suggestion.placeId);
+          if (details != null && widget.onPlaceSelected != null) {
+            widget.onPlaceSelected!(details);
+          }
+        } catch (e) {
+          print('❌ Error fetching place details: $e');
+        } finally {
+          // Reset flag after delay
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              setState(() {
+                _isSelecting = false;
+              });
+            }
+          });
+        }
       },
       
       // Decoration for the suggestions container
@@ -313,7 +373,7 @@ class GooglePlacesService {
 
     final String url = '$_baseUrl/autocomplete/json'
         '?input=${Uri.encodeComponent(input)}'
-        '&key=${EnvironmentConfig.apiKey}'  // FIXED: Use correct API key reference
+        '&key=${EnvironmentConfig.apiKey}'
         '&types=geocode|establishment'
         '&components=country:us';
 
@@ -343,7 +403,7 @@ class GooglePlacesService {
     final String url = '$_baseUrl/details/json'
         '?place_id=$placeId'
         '&fields=place_id,name,formatted_address,geometry'
-        '&key=${EnvironmentConfig.apiKey}';  // FIXED: Use correct API key reference
+        '&key=${EnvironmentConfig.apiKey}';
 
     try {
       final response = await http.get(Uri.parse(url));

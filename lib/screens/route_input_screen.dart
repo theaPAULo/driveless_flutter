@@ -1,7 +1,11 @@
 // lib/screens/route_input_screen.dart
 //
-// IMPROVED: Clean UI, Direct Typing Autocomplete, Reverse Geocoding
-// All three requested features implemented
+// COMPLETE VERSION: All fixes and improvements integrated (SYNTAX FIXED)
+// - Horizontal saved addresses above text fields
+// - Individual loading states for each location
+// - Uniform pin icons
+// - Remove stop functionality
+// - Improved UI styling
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -45,13 +49,18 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   bool _isOptimizing = false;
   bool _isRoundTrip = false;
   bool _includeTraffic = true;
-  bool _isGettingLocation = false;
+  Map<String, bool> _loadingStates = {}; // Track loading state for each field
   List<SavedAddress> _savedAddresses = [];
   
   // Address storage for formatted addresses from autocomplete
   String _startLocationAddress = '';
   String _endLocationAddress = '';
   final List<String> _stopAddresses = [];
+
+  // Helper to get loading state for a specific field
+  bool _isLoadingLocation(String fieldId) {
+    return _loadingStates[fieldId] ?? false;
+  }
 
   @override
   void initState() {
@@ -73,7 +82,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   /// Load saved addresses from storage
   Future<void> _loadSavedAddresses() async {
     try {
-      // Initialize the service and load addresses
       await _savedAddressService.initialize();
       final addresses = _savedAddressService.savedAddresses;
       if (mounted) {
@@ -111,17 +119,20 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   children: [
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     
                     // Route Input Section
                     _buildRouteInputSection(),
                     
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     
                     // Settings Section
                     _buildSettingsSection(),
                     
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+                    
+                    // Route Summary (if addresses entered)
+                    _buildRouteSummary(),
                     
                     // Optimize Button
                     _buildOptimizeButton(),
@@ -140,7 +151,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // MARK: - Header
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -148,16 +159,18 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             'Plan Your Route',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 34,
-              fontWeight: FontWeight.bold,
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             'Optimize your multi-stop journey',
             style: TextStyle(
-              color: Colors.grey[400],
-              fontSize: 17,
+              color: Colors.grey[500],
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
             ),
           ),
         ],
@@ -168,17 +181,14 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // MARK: - Route Input Section
   Widget _buildRouteInputSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF2C2C2E),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
@@ -187,42 +197,42 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             label: 'Starting location',
             controller: _startLocationController,
             icon: Icons.location_on,
-            iconColor: const Color(0xFF2E7D32),
+            iconColor: const Color(0xFF34C759), // iOS green
             isStart: true,
           ),
           
-          const SizedBox(height: 16),
-          
-          // Connector line
-          _buildConnectorLine(),
-          
-          const SizedBox(height: 16),
+          if (_stopControllers.isNotEmpty || !_isRoundTrip) ...[
+            const SizedBox(height: 12),
+            _buildConnectorLine(),
+            const SizedBox(height: 12),
+          ],
           
           // Stops Section
           ..._buildStopsSection(),
           
           // Add connector line if we have stops
-          if (_stopControllers.isNotEmpty) ...[
-            const SizedBox(height: 16),
+          if (_stopControllers.isNotEmpty && !_isRoundTrip) ...[
+            const SizedBox(height: 12),
             _buildConnectorLine(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
           ],
           
-          // End Location Section
-          _buildLocationSection(
-            label: _isRoundTrip ? 'Return to start' : 'Destination',
-            controller: _endLocationController,
-            icon: Icons.flag,
-            iconColor: Colors.red,
-            isStart: false,
-            isDisabled: _isRoundTrip,
-          ),
+          // End Location Section (only if not round trip)
+          if (!_isRoundTrip)
+            _buildLocationSection(
+              label: 'Destination',
+              controller: _endLocationController,
+              icon: Icons.location_on,
+              iconColor: const Color(0xFFFF3B30), // iOS red
+              isStart: false,
+              isDisabled: false,
+            ),
         ],
       ),
     );
   }
 
-  // MARK: - Location Section with Improved Saved Address Chips
+  // MARK: - Location Section with Horizontal Saved Addresses and Remove Button
   Widget _buildLocationSection({
     required String label,
     required TextEditingController controller,
@@ -232,56 +242,39 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     bool isDisabled = false,
     int? stopIndex,
   }) {
-    return Row(
+    // Create unique ID for this field's loading state
+    final String fieldId = stopIndex != null 
+        ? 'stop_$stopIndex' 
+        : (isStart ? 'start' : 'end');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left side: Icon and saved addresses in a compact layout
-        Column(
-          children: [
-            // Main location icon (clickable for current location)
-            GestureDetector(
-              onTap: _isGettingLocation || isDisabled
-                  ? null
-                  : () => _useCurrentLocation(isStart, stopIndex: stopIndex),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: _isGettingLocation
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-                        ),
-                      )
-                    : Icon(
-                        icon,
-                        color: iconColor,
-                        size: 20,
-                      ),
-              ),
-            ),
-            
-            // Saved address chips stacked vertically below the icon
-            if (!isDisabled && _savedAddresses.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              ..._savedAddresses.take(2).map((address) => 
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+        // Saved address chips - horizontal row above the input field
+        if (!isDisabled && _savedAddresses.isNotEmpty) ...[
+          Container(
+            height: 36,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _savedAddresses.length,
+              itemBuilder: (context, index) {
+                final address = _savedAddresses[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: 8,
+                    left: index == 0 ? 52 : 0, // Align with text field
+                  ),
                   child: GestureDetector(
                     onTap: () => _selectSavedAddress(address, isStart, stopIndex: stopIndex),
                     child: Container(
-                      width: 32,
-                      height: 32,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E7D32).withOpacity(0.1),
+                        color: const Color(0xFF34C759).withOpacity(0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFF2E7D32).withOpacity(0.3),
+                          color: const Color(0xFF34C759).withOpacity(0.3),
                           width: 1,
                         ),
                       ),
@@ -291,71 +284,124 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                             : address.addressType == SavedAddressType.work
                                 ? Icons.business
                                 : Icons.place,
-                        color: const Color(0xFF2E7D32),
-                        size: 16,
+                        color: const Color(0xFF34C759),
+                        size: 18,
                       ),
                     ),
                   ),
+                );
+              },
+            ),
+          ),
+        ],
+        
+        // Input field row with current location icon on the left
+        Row(
+          children: [
+            // Current location icon (uniform pin icon)
+            GestureDetector(
+              onTap: isDisabled || _isLoadingLocation(fieldId)
+                  ? null
+                  : () => _useCurrentLocation(isStart, stopIndex: stopIndex, fieldId: fieldId),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
                 ),
-              ).toList(),
+                child: _isLoadingLocation(fieldId)
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+                        ),
+                      )
+                    : Icon(
+                        Icons.location_on, // Uniform pin icon
+                        color: iconColor,
+                        size: 20,
+                      ),
+              ),
+            ),
+            
+            const SizedBox(width: 16),
+            
+            // Autocomplete text field
+            Expanded(
+              child: isDisabled
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3A3A3C).withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF48484A),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 16,
+                        ),
+                      ),
+                    )
+                  : AutocompleteTextField(
+                      controller: controller,
+                      hint: label,
+                      icon: Icons.search,
+                      iconColor: Colors.transparent,
+                      enabled: true,
+                      onPlaceSelected: (placeDetails) {
+                        if (isStart) {
+                          _startLocationAddress = placeDetails.formattedAddress;
+                          controller.text = placeDetails.name.isNotEmpty 
+                              ? placeDetails.name 
+                              : _formatShortAddress(placeDetails.formattedAddress);
+                        } else if (stopIndex != null) {
+                          if (stopIndex < _stopAddresses.length) {
+                            _stopAddresses[stopIndex] = placeDetails.formattedAddress;
+                          } else {
+                            _stopAddresses.add(placeDetails.formattedAddress);
+                          }
+                          controller.text = placeDetails.name.isNotEmpty 
+                              ? placeDetails.name 
+                              : _formatShortAddress(placeDetails.formattedAddress);
+                        } else {
+                          _endLocationAddress = placeDetails.formattedAddress;
+                          controller.text = placeDetails.name.isNotEmpty 
+                              ? placeDetails.name 
+                              : _formatShortAddress(placeDetails.formattedAddress);
+                        }
+                      },
+                    ),
+            ),
+            
+            // Add remove button for stops
+            if (stopIndex != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _removeStop(stopIndex),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.red,
+                    size: 20,
+                  ),
+                ),
+              ),
             ],
           ],
-        ),
-        
-        const SizedBox(width: 16),
-        
-        // Right side: Autocomplete text field
-        Expanded(
-          child: isDisabled
-              ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A3A3C).withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF48484A),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: Colors.grey[500],
-                      fontSize: 16,
-                    ),
-                  ),
-                )
-              : AutocompleteTextField(
-                  controller: controller,
-                  hint: label,
-                  icon: Icons.search,
-                  iconColor: Colors.transparent, // Hide the icon since we have it on the left
-                  enabled: true,
-                  onPlaceSelected: (placeDetails) {
-                    // Update the appropriate address storage
-                    if (isStart) {
-                      _startLocationAddress = placeDetails.formattedAddress;
-                      // Update controller with business name or shortened address
-                      controller.text = placeDetails.name.isNotEmpty 
-                          ? placeDetails.name 
-                          : _formatShortAddress(placeDetails.formattedAddress);
-                    } else if (stopIndex != null) {
-                      if (stopIndex < _stopAddresses.length) {
-                        _stopAddresses[stopIndex] = placeDetails.formattedAddress;
-                      } else {
-                        _stopAddresses.add(placeDetails.formattedAddress);
-                      }
-                      controller.text = placeDetails.name.isNotEmpty 
-                          ? placeDetails.name 
-                          : _formatShortAddress(placeDetails.formattedAddress);
-                    } else {
-                      _endLocationAddress = placeDetails.formattedAddress;
-                      controller.text = placeDetails.name.isNotEmpty 
-                          ? placeDetails.name 
-                          : _formatShortAddress(placeDetails.formattedAddress);
-                    }
-                  },
-                ),
         ),
       ],
     );
@@ -363,7 +409,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // Helper method to format addresses into shorter display text
   String _formatShortAddress(String fullAddress) {
-    // Extract just the street address or first part
     final parts = fullAddress.split(',');
     if (parts.isNotEmpty) {
       return parts[0].trim();
@@ -371,7 +416,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return fullAddress;
   }
 
-  // Updated method to select saved address
+  // Select saved address
   void _selectSavedAddress(SavedAddress address, bool isForStart, {int? stopIndex}) {
     if (isForStart) {
       _startLocationController.text = address.displayName.isNotEmpty 
@@ -379,7 +424,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           : address.label;
       _startLocationAddress = address.fullAddress;
       
-      // If round trip is enabled, also update end location
       if (_isRoundTrip) {
         _endLocationController.text = _startLocationController.text;
         _endLocationAddress = _startLocationAddress;
@@ -402,9 +446,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   }
 
   // MARK: - Current Location with Reverse Geocoding
-  Future<void> _useCurrentLocation(bool isForStart, {int? stopIndex}) async {
+  Future<void> _useCurrentLocation(bool isForStart, {int? stopIndex, required String fieldId}) async {
     setState(() {
-      _isGettingLocation = true;
+      _loadingStates[fieldId] = true; // Set loading for specific field
     });
 
     try {
@@ -439,7 +483,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       // Update the appropriate field
       if (isForStart) {
         _startLocationController.text = friendlyName;
-        _startLocationAddress = coordinates; // Keep actual coordinates for routing
+        _startLocationAddress = coordinates;
         
         if (_isRoundTrip) {
           _endLocationController.text = friendlyName;
@@ -464,7 +508,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       _showLocationError('Unable to get current location');
     } finally {
       setState(() {
-        _isGettingLocation = false;
+        _loadingStates[fieldId] = false; // Clear loading for specific field
       });
     }
   }
@@ -472,7 +516,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // Reverse geocode coordinates to get a friendly name
   Future<String> _reverseGeocode(double latitude, double longitude) async {
     try {
-      final String apiKey = EnvironmentConfig.apiKey;  // FIXED: Use correct API key reference
+      final String apiKey = EnvironmentConfig.apiKey;
       final String url = 'https://maps.googleapis.com/maps/api/geocode/json'
           '?latlng=$latitude,$longitude'
           '&key=$apiKey';
@@ -483,7 +527,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         final data = json.decode(response.body);
         
         if (data['status'] == 'OK' && data['results'].isNotEmpty) {
-          // Look for the best name to display
           final results = data['results'] as List;
           
           // Priority 1: Look for a point of interest (business/landmark)
@@ -494,7 +537,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                 types.contains('park') ||
                 types.contains('airport') ||
                 types.contains('transit_station')) {
-              // Extract the name from the first address component or formatted address
               final addressComponents = result['address_components'] as List;
               if (addressComponents.isNotEmpty) {
                 return addressComponents[0]['long_name'] ?? result['formatted_address'];
@@ -506,12 +548,10 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           final firstResult = results[0];
           final formattedAddress = firstResult['formatted_address'] as String;
           
-          // Check if it's a specific address
           if (formattedAddress.contains(RegExp(r'^\d+'))) {
-            // Has a street number, return just the street address
             final parts = formattedAddress.split(',');
             if (parts.isNotEmpty) {
-              return parts[0].trim(); // Return just "123 Main St"
+              return parts[0].trim();
             }
           }
           
@@ -538,7 +578,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       print('❌ Reverse geocoding error: $e');
     }
     
-    // Fallback to coordinates if reverse geocoding fails
+    // Fallback to coordinates
     return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
   }
 
@@ -561,13 +601,25 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   // MARK: - Connector Line
   Widget _buildConnectorLine() {
-    return Container(
-      width: 2,
-      height: 20,
-      decoration: BoxDecoration(
-        color: Colors.grey[600],
-        borderRadius: BorderRadius.circular(1),
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        const SizedBox(width: 18), // Align with icon center
+        Container(
+          width: 1,
+          height: 24,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey[600]!,
+                Colors.grey[700]!,
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -582,54 +634,57 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             _buildLocationSection(
               label: 'Stop ${i + 1}',
               controller: _stopControllers[i],
-              icon: Icons.flag,
+              icon: Icons.location_on,
               iconColor: Colors.orange,
               isStart: false,
               stopIndex: i,
             ),
-            const SizedBox(height: 16),
-            _buildConnectorLine(),
-            const SizedBox(height: 16),
+            if (i < _stopControllers.length - 1 || true) ...[
+              const SizedBox(height: 12),
+              _buildConnectorLine(),
+              const SizedBox(height: 12),
+            ],
           ],
         ),
       );
     }
     
-    // Add Stop button
+    // Improved Add Stop button
     stops.add(
       GestureDetector(
         onTap: _addStop,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFF2E7D32).withOpacity(0.1),
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFF2E7D32).withOpacity(0.3),
-              width: 1,
+              color: const Color(0xFF34C759).withOpacity(0.5),
+              width: 1.5,
             ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32),
+                  color: const Color(0xFF34C759),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.add,
                   color: Colors.white,
-                  size: 16,
+                  size: 18,
                 ),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Add Stop',
                 style: TextStyle(
-                  color: Color(0xFF2E7D32),
+                  color: Color(0xFF34C759),
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
@@ -650,19 +705,39 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
   }
 
+  // MARK: - Remove Stop
+  void _removeStop(int index) {
+    setState(() {
+      // Remove the controller
+      if (index < _stopControllers.length) {
+        _stopControllers[index].dispose();
+        _stopControllers.removeAt(index);
+      }
+      
+      // Remove the address
+      if (index < _stopAddresses.length) {
+        _stopAddresses.removeAt(index);
+      }
+    });
+  }
+
   // MARK: - Settings Section
   Widget _buildSettingsSection() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF2C2C2E),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
           // Round Trip Toggle
           _buildToggleOption(
-            icon: Icons.loop,
+            icon: Icons.loop_rounded,
             title: 'Round Trip',
             subtitle: 'Return to starting location',
             value: _isRoundTrip,
@@ -680,15 +755,19 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             },
           ),
           
-          const Divider(height: 32, color: Color(0xFF48484A)),
+          Container(
+            height: 0.5,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            color: const Color(0xFF2C2C2E),
+          ),
           
           // Traffic Toggle
           _buildToggleOption(
-            icon: Icons.traffic,
+            icon: Icons.traffic_rounded,
             title: 'Consider Traffic',
             subtitle: 'Include current traffic conditions',
             value: _includeTraffic,
-            activeColor: const Color(0xFF8B4513),
+            activeColor: const Color(0xFFFF9500), // iOS orange
             onChanged: (value) {
               setState(() {
                 _includeTraffic = value;
@@ -715,12 +794,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: (activeColor ?? const Color(0xFF2E7D32)).withOpacity(0.1),
+            color: (activeColor ?? const Color(0xFF34C759)).withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
             icon,
-            color: activeColor ?? const Color(0xFF2E7D32),
+            color: activeColor ?? const Color(0xFF34C759),
             size: 20,
           ),
         ),
@@ -751,9 +830,56 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: activeColor ?? const Color(0xFF2E7D32),
+          activeColor: Colors.white,
+          activeTrackColor: activeColor ?? const Color(0xFF34C759),
+          inactiveThumbColor: Colors.grey[300],
+          inactiveTrackColor: Colors.grey[600],
         ),
       ],
+    );
+  }
+
+  // MARK: - Route Summary
+  Widget _buildRouteSummary() {
+    int stopCount = _stopControllers.where((c) => c.text.isNotEmpty).length;
+    bool hasStart = _startLocationController.text.isNotEmpty;
+    bool hasEnd = _endLocationController.text.isNotEmpty || _isRoundTrip;
+    
+    if (!hasStart || !hasEnd) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF34C759).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF34C759).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: const Color(0xFF34C759),
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              stopCount > 0
+                  ? 'Ready to optimize route with $stopCount stop${stopCount > 1 ? 's' : ''}'
+                  : 'Ready to calculate direct route',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -764,14 +890,32 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
     return GestureDetector(
       onTap: canOptimize && !_isOptimizing ? _optimizeRoute : null,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: canOptimize
-              ? const Color(0xFF2E7D32)
-              : const Color(0xFF2E7D32).withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
+          gradient: canOptimize
+              ? LinearGradient(
+                  colors: [
+                    const Color(0xFF34C759),
+                    const Color(0xFF30B350),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: canOptimize ? null : const Color(0xFF2C2C2E),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: canOptimize
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF34C759).withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : [],
         ),
         child: Center(
           child: _isOptimizing
@@ -780,23 +924,35 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                   height: 24,
                   child: CircularProgressIndicator(
                     color: Colors.white,
-                    strokeWidth: 2,
+                    strokeWidth: 2.5,
                   ),
                 )
-              : const Text(
-                  'Optimize Route',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.route_rounded,
+                      color: canOptimize ? Colors.white : Colors.grey[600],
+                      size: 22,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Optimize Route',
+                      style: TextStyle(
+                        color: canOptimize ? Colors.white : Colors.grey[600],
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
         ),
       ),
     );
   }
 
-  // MARK: - Optimize Route (FIXED)
+  // MARK: - Optimize Route
   Future<void> _optimizeRoute() async {
     // Validate inputs
     if (_startLocationController.text.isEmpty) {
@@ -854,7 +1010,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
       print('🚗 Optimizing route with ${stops.length} stops');
       
-      // FIXED: Use correct method name
+      // Call the route optimization service
       final optimizedRoute = await _routeService.calculateOptimizedRoute(
         startLocation: originalInputs.startLocation,
         endLocation: originalInputs.endLocation,
@@ -865,7 +1021,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       // Track usage
       await _usageTrackingService.incrementUsage();
       
-      // FIXED: Use correct analytics method
+      // Log analytics
       await _analyticsService.trackRouteCalculation(
         stops: [
           originalInputs.startLocation,
@@ -877,7 +1033,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         success: true,
       );
 
-      // FIXED: Navigate with correct parameters
+      // Navigate to results screen
       if (mounted) {
         Navigator.push(
           context,
@@ -893,7 +1049,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       print('❌ Route optimization error: $e');
       _showError('Failed to optimize route. Please try again.');
       
-      // FIXED: Use correct error tracking method
+      // Track error
       await _errorTrackingService.trackError(
         errorType: ErrorType.routeCalculation,
         errorMessage: e.toString(),
