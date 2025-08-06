@@ -1,7 +1,8 @@
 // lib/screens/profile_screen.dart
 //
-// Enhanced user profile screen with real statistics and admin features
-// Now properly integrated with real data from RouteStorageService
+// Enhanced user profile screen with THEME-AWARE COLORS
+// Now properly switches between light and dark themes
+// Real statistics integration with RouteStorageService
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +17,7 @@ import 'route_history_screen.dart';
 import 'favorite_routes_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'settings_screen.dart';
-import 'feedback_screen.dart';  // ADD THIS IMPORT
+import 'feedback_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -74,8 +75,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎨 THEME-AWARE: Use theme colors instead of hardcoded black
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -85,17 +87,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 const SizedBox(height: 20),
                 
-                // MARK: - Header Section (matching iOS exactly)
+                // MARK: - Header Section (theme-aware)
                 _buildHeaderSection(),
                 
                 const SizedBox(height: 32),
                 
-                // MARK: - Your Stats Card (enhanced with real data)
+                // MARK: - Your Stats Card (theme-aware)
                 _buildStatsCard(),
                 
                 const SizedBox(height: 24),
                 
-                // MARK: - Menu Sections (matching iOS layout)
+                // MARK: - Menu Sections (theme-aware)
                 _buildMenuSections(),
                 
                 const SizedBox(height: 40),
@@ -107,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // MARK: - Header Section
+  // MARK: - Header Section (Theme-Aware)
   Widget _buildHeaderSection() {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
@@ -159,11 +161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 16),
             
-            // Welcome message and user name (matching iOS style)
+            // 🎨 THEME-AWARE: Welcome message and user name
             Text(
               'Hello, ${user?.displayName?.split(' ').first ?? user?.email?.split('@').first ?? 'User'}!',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.headlineLarge?.color,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
               ),
@@ -171,80 +173,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             const SizedBox(height: 4),
             
-            // User email with proper styling
+            // 🎨 THEME-AWARE: User email
             Text(
               user?.email ?? 'No email available',
               style: TextStyle(
-                color: Colors.grey[400],
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                 fontSize: 16,
               ),
             ),
-            
-            const SizedBox(height: 12),
-            
-            // Provider badge (matching iOS)
-            if (user?.provider != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFF2E7D32).withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      user!.provider == AuthProviderType.google ? Icons.account_circle : Icons.apple,
-                      color: const Color(0xFF4CAF50),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      user.provider.name,
-                      style: const TextStyle(
-                        color: Color(0xFF4CAF50),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
           ],
         );
       },
     );
   }
 
-  // MARK: - Stats Card (with real data)
+  // MARK: - Stats Card (Theme-Aware)
   Widget _buildStatsCard() {
-    if (_isLoadingStats) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: const Color(0xFF2C2C2E),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF2E7D32),
-          ),
-        ),
-      );
-    }
-
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        // 🎨 THEME-AWARE: Card background color
+        color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.black.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -253,10 +209,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          // 🎨 THEME-AWARE: Stats title
+          Text(
             'Your Stats',
             style: TextStyle(
-              color: Colors.white,
+              color: Theme.of(context).textTheme.headlineMedium?.color,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -264,167 +221,184 @@ class _ProfileScreenState extends State<ProfileScreen> {
           
           const SizedBox(height: 20),
           
-          // Top row stats
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.map_outlined,
-                  iconColor: const Color(0xFF2E7D32),
-                  value: _routeStats['totalRoutes']?.toString() ?? '0',
-                  label: 'Total Routes',
-                ),
+          if (_isLoadingStats)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF34C759),
               ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.favorite,
-                  iconColor: const Color(0xFF2E7D32),
-                  value: _routeStats['favoriteRoutes']?.toString() ?? '0',
-                  label: 'Favorites',
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.access_time,
-                  iconColor: const Color(0xFF2E7D32),
-                  value: _formatTimeSaved((_routeStats['totalTimeSaved'] ?? 0.0).toDouble()),
-                  label: 'Time Saved',
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // Bottom row stats
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.eco,
-                  iconColor: const Color(0xFF4CAF50),
-                  value: _formatCO2Saved((_routeStats['co2Saved'] ?? 0.0).toDouble()),
-                  label: 'CO₂ Saved\nlbs',
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.straighten,
-                  iconColor: const Color(0xFF2E7D32),
-                  value: _formatDistanceSaved((_routeStats['totalDistanceSaved'] ?? 0.0).toDouble()),
-                  label: 'Miles Saved\nmiles',
-                ),
-              ),
-              Expanded(
-                child: _buildStatItem(
-                  icon: Icons.local_gas_station,
-                  iconColor: const Color(0xFF4CAF50),
-                  value: _formatFuelSaved((_routeStats['fuelSaved'] ?? 0.0).toDouble()),
-                  label: 'Fuel Saved\ngallons',
-                ),
-              ),
-            ],
-          ),
+            )
+          else
+            _buildStatsGrid(),
         ],
       ),
     );
   }
 
-  // MARK: - Individual Stat Item
-  Widget _buildStatItem({
-    required IconData icon,
-    required Color iconColor,
-    required String value,
-    required String label,
-  }) {
+  // MARK: - Stats Grid (Theme-Aware)
+  Widget _buildStatsGrid() {
+    // Extract stats with fallbacks
+    final totalRoutes = _routeStats['totalRoutes'] ?? 0;
+    final favoriteRoutes = _routeStats['favoriteRoutes'] ?? 0;
+    final timeSaved = (_routeStats['timeSavedMinutes'] ?? 0.0).toDouble();
+    final co2Saved = (_routeStats['co2SavedPounds'] ?? 0.0).toDouble();
+    final distanceSaved = (_routeStats['distanceSavedMiles'] ?? 0.0).toDouble();
+    final fuelSaved = (_routeStats['fuelSavedGallons'] ?? 0.0).toDouble();
+
     return Column(
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 24,
-          ),
+        // Top Row
+        Row(
+          children: [
+            Expanded(child: _buildStatItem(
+              icon: Icons.route,
+              iconColor: const Color(0xFF34C759),
+              value: totalRoutes.toString(),
+              label: 'Total Routes',
+            )),
+            Expanded(child: _buildStatItem(
+              icon: Icons.favorite,
+              iconColor: Colors.red,
+              value: favoriteRoutes.toString(),
+              label: 'Favorites',
+            )),
+            Expanded(child: _buildStatItem(
+              icon: Icons.access_time,
+              iconColor: Colors.blue,
+              value: _formatTimeSaved(timeSaved),
+              label: 'Time Saved',
+            )),
+          ],
         ),
-        const SizedBox(height: 12),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 12,
-          ),
+        
+        const SizedBox(height: 16),
+        
+        // Bottom Row
+        Row(
+          children: [
+            Expanded(child: _buildStatItem(
+              icon: Icons.eco,
+              iconColor: Colors.green,
+              value: _formatCO2Saved(co2Saved),
+              label: 'CO₂ Saved',
+              subLabel: 'lbs',
+            )),
+            Expanded(child: _buildStatItem(
+              icon: Icons.straighten,
+              iconColor: Colors.orange,
+              value: _formatDistanceSaved(distanceSaved),
+              label: 'Miles Saved',
+              subLabel: 'miles',
+            )),
+            Expanded(child: _buildStatItem(
+              icon: Icons.local_gas_station,
+              iconColor: Colors.purple,
+              value: _formatFuelSaved(fuelSaved),
+              label: 'Fuel Saved',
+              subLabel: 'gallons',
+            )),
+          ],
         ),
       ],
     );
   }
 
-  // MARK: - Menu Sections
+  // MARK: - Stat Item (Theme-Aware)
+  Widget _buildStatItem({
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String label,
+    String? subLabel,
+  }) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          color: iconColor,
+          size: 32,
+        ),
+        const SizedBox(height: 8),
+        // 🎨 THEME-AWARE: Stat value text
+        Text(
+          value,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.headlineMedium?.color,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 2),
+        // 🎨 THEME-AWARE: Stat label text
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            fontSize: 12,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (subLabel != null)
+          Text(
+            subLabel,
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+              fontSize: 10,
+            ),
+          ),
+      ],
+    );
+  }
+
+  // MARK: - Menu Sections (Theme-Aware)
   Widget _buildMenuSections() {
     return Column(
       children: [
         // Your Routes Section
-        _buildMenuCard(
+        _buildMenuSection(
           title: 'Your Routes',
           children: [
             _buildMenuItem(
               icon: Icons.history,
-              iconColor: const Color(0xFF2E7D32),
+              iconColor: const Color(0xFF34C759),
               title: 'Route History',
               subtitle: 'View and reload past routes',
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const RouteHistoryScreen(),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const RouteHistoryScreen()),
                 );
               },
             ),
             _buildMenuDivider(),
             _buildMenuItem(
               icon: Icons.favorite,
-              iconColor: const Color(0xFF2E7D32),
+              iconColor: Colors.red,
               title: 'Favorite Routes',
               subtitle: 'Quick access to saved routes',
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const FavoriteRoutesScreen(),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FavoriteRoutesScreen()),
                 );
               },
             ),
           ],
         ),
-        
-        const SizedBox(height: 16),
-        
+
+        const SizedBox(height: 20),
+
         // Your Addresses Section
-        _buildMenuCard(
+        _buildMenuSection(
           title: 'Your Addresses',
           children: [
             _buildMenuItem(
               icon: Icons.home,
-              iconColor: const Color(0xFF2E7D32),
+              iconColor: const Color(0xFF34C759),
               title: 'Saved Addresses',
               subtitle: 'Manage home, work & custom locations',
               onTap: () {
-                Navigator.of(context).push(
+                Navigator.push(
+                  context,
                   MaterialPageRoute(
                     builder: (context) => SavedAddressesScreen(
                       addressService: _addressService,
@@ -435,88 +409,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-        
-        const SizedBox(height: 16),
-        
+
+        const SizedBox(height: 20),
+
         // App Settings Section
-        _buildMenuCard(
+        _buildMenuSection(
           title: 'App Settings',
           children: [
             _buildMenuItem(
               icon: Icons.settings,
-              iconColor: const Color(0xFF2E7D32),
+              iconColor: const Color(0xFF34C759),
               title: 'Settings',
               subtitle: 'Preferences, themes & defaults',
               onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
                 );
               },
             ),
-          ],
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Feedback Section
-        _buildMenuCard(
-          title: 'Feedback',
-          children: [
+            _buildMenuDivider(),
             _buildMenuItem(
-              icon: Icons.feedback_outlined,
-              iconColor: const Color(0xFF2E7D32),
+              icon: Icons.feedback,
+              iconColor: Colors.blue,
               title: 'Send Feedback',
               subtitle: 'Help us improve DriveLess',
               onTap: () {
-                Navigator.of(context).push(
+                Navigator.push(
+                  context,
                   MaterialPageRoute(builder: (context) => const FeedbackScreen()),
                 );
               },
             ),
+            _buildMenuDivider(),
+            _buildMenuItem(
+              icon: Icons.shield,
+              iconColor: Colors.purple,
+              title: 'Admin Dashboard',
+              subtitle: 'App statistics & management',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+                );
+              },
+            ),
           ],
         ),
-        
-        const SizedBox(height: 16),
-        
-        // Admin Section (only show if user is admin)
-        Consumer<AuthProvider>(
-          builder: (context, authProvider, child) {
-            // Check if user is admin (you can modify this logic as needed)
-            final userEmail = authProvider.user?.email;
-            final isAdmin = userEmail == 'psoni511@gmail.com'; // Replace with your admin email
-            
-            if (!isAdmin) return const SizedBox.shrink();
-            
-            return Column(
-              children: [
-                _buildMenuCard(
-                  title: 'Admin',
-                  children: [
-                    _buildMenuItem(
-                      icon: Icons.admin_panel_settings,
-                      iconColor: const Color(0xFF2E7D32),
-                      title: 'Admin Dashboard',
-                      subtitle: 'App statistics & management',
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const AdminDashboardScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            );
-          },
-        ),
-        
+
+        const SizedBox(height: 20),
+
         // Account Section
-        _buildMenuCard(
+        _buildMenuSection(
           title: 'Account',
           children: [
             _buildMenuItem(
@@ -540,22 +484,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // MARK: - Menu Card Container
-  Widget _buildMenuCard({
+  // MARK: - Menu Section (Theme-Aware)
+  Widget _buildMenuSection({
     required String title,
     required List<Widget> children,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        // 🎨 THEME-AWARE: Section background color
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -565,8 +503,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             child: Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.headlineMedium?.color,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
@@ -582,7 +520,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // MARK: - Menu Item
+  // MARK: - Menu Item (Theme-Aware)
   Widget _buildMenuItem({
     required IconData icon,
     required Color iconColor,
@@ -621,19 +559,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // 🎨 THEME-AWARE: Menu title
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
+                    // 🎨 THEME-AWARE: Menu subtitle
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.grey[400],
+                        color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -644,7 +584,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Arrow Icon
               Icon(
                 Icons.arrow_forward_ios,
-                color: Colors.grey[600],
+                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
                 size: 16,
               ),
             ],
@@ -654,12 +594,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // MARK: - Menu Divider
+  // MARK: - Menu Divider (Theme-Aware)
   Widget _buildMenuDivider() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 1,
-      color: Colors.grey.withOpacity(0.2),
+      color: Theme.of(context).brightness == Brightness.dark
+        ? Colors.grey.withOpacity(0.2)
+        : Colors.grey.withOpacity(0.3),
     );
   }
 
@@ -720,26 +662,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2E),
-          title: const Text(
+          // 🎨 THEME-AWARE: Dialog background
+          backgroundColor: Theme.of(context).cardTheme.color,
+          title: Text(
             'Sign Out',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
           ),
           content: Text(
             'Are you sure you want to sign out? You can sign back in anytime.',
-            style: TextStyle(color: Colors.grey[300]),
+            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: Colors.grey[400]),
+                style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
               ),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.of(context).pop();
                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
                 await authProvider.signOut();
               },
@@ -760,32 +703,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF2C2C2E),
-          title: const Text(
+          // 🎨 THEME-AWARE: Dialog background
+          backgroundColor: Theme.of(context).cardTheme.color,
+          title: Text(
             'Delete Account',
             style: TextStyle(color: Colors.red),
           ),
           content: Text(
-            'This action cannot be undone. All your data, including saved routes and addresses, will be permanently deleted.',
-            style: TextStyle(color: Colors.grey[300]),
+            'Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.',
+            style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Cancel',
-                style: TextStyle(color: Colors.grey[400]),
+                style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7)),
               ),
             ),
             TextButton(
               onPressed: () async {
-                Navigator.pop(context);
+                Navigator.of(context).pop();
                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
                 await authProvider.deleteAccount();
               },
               child: const Text(
                 'Delete Account',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
               ),
             ),
           ],
