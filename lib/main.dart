@@ -1,7 +1,7 @@
 // lib/main.dart
 //
-// Main app entry point for DriveLess Flutter app
-// Now with dynamic theme switching via ThemeProvider
+// CORRECTED: Main app entry point with proper import paths
+// Now imports MainTabView from screens directory
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,7 +12,7 @@ import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/main_tab_view.dart';
+import 'screens/main_tab_view.dart'; // ✅ FIXED: Import MainTabView from screens/
 
 /// Main app entry point
 void main() async {
@@ -67,28 +67,10 @@ class DriveLessApp extends StatelessWidget {
                 
                 // Show main app if authenticated, login screen if not
                 return authProvider.isSignedIn 
-                  ? const MainTabView()
+                  ? const MainTabView() // ✅ FIXED: Use MainTabView instead of individual screens
                   : const LoginScreen();
               },
             ),
-            
-            // Route generation (if using named routes)
-            onGenerateRoute: (settings) {
-              switch (settings.name) {
-                case '/login':
-                  return MaterialPageRoute(builder: (_) => const LoginScreen());
-                case '/main':
-                  return MaterialPageRoute(builder: (_) => const MainTabView());
-                default:
-                  return MaterialPageRoute(
-                    builder: (_) => const Scaffold(
-                      body: Center(
-                        child: Text('Route not found'),
-                      ),
-                    ),
-                  );
-              }
-            },
           );
         },
       ),

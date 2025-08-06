@@ -1,7 +1,8 @@
 // lib/widgets/autocomplete_text_field.dart
 //
-// COMPLETE VERSION: Smart address input with proper suggestion dismissal
-// Fixed to properly dismiss suggestions after selection
+// COMPLETE VERSION: Theme-aware autocomplete text field
+// Now properly switches between light and dark themes
+// Matches iOS design in both themes
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -9,6 +10,61 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:http/http.dart' as http;
 
 import '../utils/constants.dart';
+
+/// Google Places service for API calls
+class GooglePlacesService {
+  static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
+
+  /// Get autocomplete suggestions from Google Places API
+  Future<List<PlacePrediction>> getAutocompleteSuggestions(String input) async {
+    try {
+      final String url = 
+          '$_baseUrl/autocomplete/json?input=${Uri.encodeComponent(input)}&key=${AppConstants.googleApiKey}';
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['predictions'] != null) {
+          return (data['predictions'] as List)
+              .map((prediction) => PlacePrediction.fromJson(prediction))
+              .toList();
+        }
+      }
+      
+      return [];
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Places API error: $e');
+      }
+      return [];
+    }
+  }
+
+  /// Get detailed place information from place ID
+  Future<PlaceDetails?> getPlaceDetails(String placeId) async {
+    try {
+      final String url = 
+          '$_baseUrl/details/json?place_id=$placeId&fields=place_id,name,formatted_address,geometry&key=${AppConstants.googleApiKey}';
+      
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['result'] != null) {
+          return PlaceDetails.fromJson(data['result']);
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Place details API error: $e');
+      }
+      return null;
+    }
+  }
+}
 
 /// Model for Google Places autocomplete prediction
 class PlacePrediction {
@@ -62,7 +118,7 @@ class PlaceDetails {
   }
 }
 
-/// Custom autocomplete text field widget matching iOS functionality
+/// Custom autocomplete text field widget with theme support
 class AutocompleteTextField extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
@@ -104,19 +160,28 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
       controller: widget.controller,
       focusNode: _focusNode,
       
-      // Configure the text field appearance
+      // ✅ THEME-AWARE: Configure the text field appearance
       builder: (context, controller, focusNode) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
+            // 🎨 FIXED: Theme-aware background colors
             color: widget.enabled 
-                ? const Color(0xFF3A3A3C) 
-                : const Color(0xFF3A3A3C).withOpacity(0.5),
+                ? (isDark 
+                    ? const Color(0xFF3A3A3C) // Dark theme
+                    : const Color(0xFFF2F2F7)) // Light theme - iOS light gray
+                : (isDark 
+                    ? const Color(0xFF3A3A3C).withOpacity(0.5) // Dark theme disabled
+                    : const Color(0xFFF2F2F7).withOpacity(0.5)), // Light theme disabled
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: focusNode.hasFocus 
-                  ? const Color(0xFF34C759) // Green border when focused
-                  : const Color(0xFF48484A),
+                  ? const Color(0xFF34C759) // Green border when focused (both themes)
+                  : (isDark 
+                      ? const Color(0xFF48484A) // Dark theme border
+                      : const Color(0xFFD1D1D6)), // Light theme border
               width: focusNode.hasFocus ? 2 : 1,
             ),
           ),
@@ -125,13 +190,17 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
             focusNode: focusNode,
             enabled: widget.enabled,
             style: TextStyle(
-              color: widget.enabled ? Colors.white : Colors.grey[500],
+              // 🎨 FIXED: Theme-aware text colors
+              color: widget.enabled 
+                  ? (isDark ? Colors.white : Colors.black) // Theme-aware text
+                  : (isDark ? Colors.grey[500] : Colors.grey[600]), // Theme-aware disabled text
               fontSize: 16,
             ),
             decoration: InputDecoration(
               hintText: widget.hint,
               hintStyle: TextStyle(
-                color: Colors.grey[500],
+                // 🎨 FIXED: Theme-aware hint colors
+                color: isDark ? Colors.grey[500] : Colors.grey[600],
                 fontSize: 16,
               ),
               border: InputBorder.none,
@@ -157,51 +226,63 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
       // Debounce duration to avoid too many API calls
       debounceDuration: const Duration(milliseconds: 300),
       
-      // Loading builder
-      loadingBuilder: (context) => Container(
-        color: const Color(0xFF2C2C2E),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  const Color(0xFF34C759),
+      // ✅ THEME-AWARE: Loading builder
+      loadingBuilder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Container(
+          color: isDark 
+              ? const Color(0xFF2C2C2E) // Dark theme
+              : const Color(0xFFF2F2F7), // Light theme
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    const Color(0xFF34C759),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Searching...',
-              style: TextStyle(
-                color: Colors.grey[400],
-                fontSize: 14,
+              const SizedBox(width: 12),
+              Text(
+                'Searching...',
+                style: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  fontSize: 14,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
       
       // Empty builder (when no suggestions)
       emptyBuilder: (context) => Container(),
       
-      // Error builder
-      errorBuilder: (context, error) => Container(
-        color: const Color(0xFF2C2C2E),
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          'Unable to load suggestions',
-          style: TextStyle(
-            color: Colors.grey[400],
-            fontSize: 14,
+      // ✅ THEME-AWARE: Error builder
+      errorBuilder: (context, error) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Container(
+          color: isDark 
+              ? const Color(0xFF2C2C2E) // Dark theme
+              : const Color(0xFFF2F2F7), // Light theme
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Unable to load suggestions',
+            style: TextStyle(
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-      ),
+        );
+      },
       
       // Suggestions callback - fetch from Google Places API
       suggestionsCallback: (pattern) async {
@@ -220,10 +301,14 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
         }
       },
       
-      // Build suggestion items with improved layout
+      // ✅ THEME-AWARE: Build suggestion items
       itemBuilder: (context, suggestion) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
         return Container(
-          color: const Color(0xFF2C2C2E),
+          color: isDark 
+              ? const Color(0xFF2C2C2E) // Dark theme
+              : const Color(0xFFF2F2F7), // Light theme
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -275,8 +360,9 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
                         children: [
                           Text(
                             suggestion.mainText ?? suggestion.description,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              // 🎨 FIXED: Theme-aware text colors
+                              color: isDark ? Colors.white : Colors.black,
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
                             ),
@@ -288,7 +374,8 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
                               child: Text(
                                 suggestion.secondaryText!,
                                 style: TextStyle(
-                                  color: Colors.grey[400],
+                                  // 🎨 FIXED: Theme-aware secondary text colors
+                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
                                   fontSize: 13,
                                 ),
                                 maxLines: 1,
@@ -329,7 +416,7 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
         } catch (e) {
           print('❌ Error fetching place details: $e');
         } finally {
-          // Reset flag after delay
+          // Reset the flag after a delay
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               setState(() {
@@ -339,87 +426,6 @@ class _AutocompleteTextFieldState extends State<AutocompleteTextField> {
           });
         }
       },
-      
-      // Decoration for the suggestions container
-      decorationBuilder: (context, child) {
-        return Container(
-          margin: const EdgeInsets.only(top: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2C2C2E),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: child,
-        );
-      },
     );
-  }
-}
-
-/// Service to handle Google Places API calls
-class GooglePlacesService {
-  static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
-
-  /// Get autocomplete suggestions
-  Future<List<PlacePrediction>> getAutocompleteSuggestions(String input) async {
-    if (input.isEmpty) return [];
-
-    final String url = '$_baseUrl/autocomplete/json'
-        '?input=${Uri.encodeComponent(input)}'
-        '&key=${EnvironmentConfig.apiKey}'
-        '&types=geocode|establishment'
-        '&components=country:us';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        if (data['status'] == 'OK') {
-          final predictions = data['predictions'] as List;
-          return predictions
-              .map((p) => PlacePrediction.fromJson(p))
-              .toList();
-        }
-      }
-      
-      return [];
-    } catch (e) {
-      print('❌ Places API error: $e');
-      return [];
-    }
-  }
-
-  /// Get detailed place information
-  Future<PlaceDetails?> getPlaceDetails(String placeId) async {
-    final String url = '$_baseUrl/details/json'
-        '?place_id=$placeId'
-        '&fields=place_id,name,formatted_address,geometry'
-        '&key=${EnvironmentConfig.apiKey}';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        if (data['status'] == 'OK' && data['result'] != null) {
-          return PlaceDetails.fromJson(data['result']);
-        }
-      }
-      
-      return null;
-    } catch (e) {
-      print('❌ Place details error: $e');
-      return null;
-    }
   }
 }

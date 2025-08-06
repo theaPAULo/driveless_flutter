@@ -1,7 +1,7 @@
 // lib/screens/main_tab_view.dart
 //
-// Main tab navigation matching iOS app exactly
-// Contains Search (Route Input) and Profile tabs
+// FIXED: Main tab navigation with THEME-AWARE bottom navigation bar
+// Now properly switches between light and dark themes
 
 import 'package:flutter/material.dart';
 
@@ -26,8 +26,12 @@ class _MainTabViewState extends State<MainTabView> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎨 THEME-AWARE: Use Theme.of(context) for proper theme switching
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: backgroundColor, // 🎨 THEME-AWARE
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
@@ -36,15 +40,23 @@ class _MainTabViewState extends State<MainTabView> {
     );
   }
 
-  // MARK: - Bottom Navigation Bar (matching iOS design exactly)
+  // MARK: - Bottom Navigation Bar - NOW THEME-AWARE
   Widget _buildBottomNavigationBar() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
       height: 90,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1C1C1E),
+      decoration: BoxDecoration(
+        // 🎨 FIXED: Theme-aware colors
+        color: isDark 
+            ? const Color(0xFF1C1C1E) // Dark theme
+            : Colors.white, // Light theme
         border: Border(
           top: BorderSide(
-            color: Color(0xFF38383A),
+            // 🎨 FIXED: Theme-aware border color
+            color: isDark 
+                ? const Color(0xFF38383A) // Dark theme border
+                : const Color(0xFFD1D1D6), // Light theme border
             width: 0.5,
           ),
         ),
@@ -74,13 +86,15 @@ class _MainTabViewState extends State<MainTabView> {
     );
   }
 
-  // MARK: - Tab Item
+  // MARK: - Tab Item - NOW THEME-AWARE
   Widget _buildTabItem({
     required int index,
     required IconData icon,
     required String label,
     required bool isSelected,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -94,14 +108,24 @@ class _MainTabViewState extends State<MainTabView> {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[600],
+              // 🎨 FIXED: Theme-aware icon colors
+              color: isSelected 
+                  ? const Color(0xFF34C759) // Always green when selected (both themes)
+                  : (isDark 
+                      ? Colors.grey[600] // Dark theme inactive
+                      : Colors.grey[500]), // Light theme inactive
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[600],
+                // 🎨 FIXED: Theme-aware text colors
+                color: isSelected 
+                    ? const Color(0xFF34C759) // Always green when selected (both themes)
+                    : (isDark 
+                        ? Colors.grey[600] // Dark theme inactive
+                        : Colors.grey[500]), // Light theme inactive
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
