@@ -1,5 +1,5 @@
 name: driveless_flutter
-description: "DriveLess route optimization app - Flutter version"
+description: "DriveLess route optimization app - Flutter version with enhanced features"
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -11,25 +11,28 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Existing dependencies
+  # Existing core dependencies (preserved)
   flutter_typeahead: ^5.2.0
   http: ^1.2.0
   geolocator: ^10.1.0
   permission_handler: ^11.1.0
   shared_preferences: ^2.2.2
 
-  # Google Maps & URL Launcher (missing dependencies)
+  # Google Maps & URL Launcher (preserved)
   google_maps_flutter: ^2.5.0
   url_launcher: ^6.2.1
 
-  # Firebase & Authentication
+  # Firebase & Authentication (preserved)
   firebase_core: ^2.32.0
   firebase_auth: ^4.20.0
   cloud_firestore: ^4.17.5
   google_sign_in: ^6.2.1
 
-  # State Management
+  # State Management (preserved)
   provider: ^6.1.2
+
+  # ✅ No additional dependencies needed for usage tracking
+  # (uses existing Firebase and Provider packages)
 
 dev_dependencies:
   flutter_test:
@@ -38,3 +41,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # ✅ Optional: Add app icons and assets here if needed
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
