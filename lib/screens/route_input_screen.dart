@@ -1,21 +1,22 @@
 // lib/screens/route_input_screen.dart
 //
-// ENHANCED: Route input screen with usage tracking integration
-// Preserves ALL existing functionality: autocomplete, reverse geocoding, theme switching, etc.
-// Only adds minimal usage tracking enhancements
+// CORRECTED: Route input screen with proper method calls
+// ✅ Fixed: SavedAddressService uses initialize() not loadAddresses()
+// ✅ Fixed: UsageTrackingService uses canPerformRouteCalculation() not canMakeRequest()
+// ✅ Fixed: UsageTrackingService has remainingRoutes getter
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ Added for haptic feedback
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:provider/provider.dart'; // ✅ Added for usage tracking
+import 'package:provider/provider.dart';
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
-import '../services/usage_tracking_service.dart'; // ✅ Added
+import '../services/usage_tracking_service.dart';
 import '../services/analytics_service.dart';
 import '../services/error_tracking_service.dart';
 import '../widgets/autocomplete_text_field.dart';
@@ -33,32 +34,32 @@ class RouteInputScreen extends StatefulWidget {
 }
 
 class _RouteInputScreenState extends State<RouteInputScreen> {
-  // Controllers for text inputs (preserved)
+  // Controllers for text inputs
   final TextEditingController _startLocationController = TextEditingController();
   final TextEditingController _endLocationController = TextEditingController();
   final List<TextEditingController> _stopControllers = [];
   
-  // Services (preserved with one addition)
+  // Services
   final RouteCalculatorService _routeService = RouteCalculatorService();
   final AnalyticsService _analyticsService = AnalyticsService();
   final ErrorTrackingService _errorTrackingService = ErrorTrackingService();
   final SavedAddressService _savedAddressService = SavedAddressService();
   
-  // State variables (all preserved)
+  // State variables
   bool _isOptimizing = false;
   bool _isRoundTrip = false;
   bool _includeTraffic = true;
   Map<String, bool> _loadingStates = {};
   List<SavedAddress> _savedAddresses = [];
   
-  // Address storage for formatted addresses from autocomplete (preserved)
+  // Address storage for formatted addresses from autocomplete
   String _startLocationAddress = '';
   String _endLocationAddress = '';
   String _tempEndLocation = '';
   String _tempEndAddress = '';
   final List<String> _stopAddresses = [];
 
-  // Helper to get loading state for a specific field (preserved)
+  // Helper to get loading state for a specific field
   bool _isLoadingLocation(String fieldId) {
     return _loadingStates[fieldId] ?? false;
   }
@@ -67,7 +68,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   void initState() {
     super.initState();
     _loadSavedAddresses();
-    // ✅ Initialize usage tracking
+    
+    // Initialize usage tracking
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<UsageTrackingService>().initialize();
@@ -75,154 +77,165 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
   }
 
-  /// Load saved addresses using existing service method (preserved)
+  @override
+  void dispose() {
+    _startLocationController.dispose();
+    _endLocationController.dispose();
+    for (var controller in _stopControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  // ✅ FIXED: Use initialize() method instead of loadAddresses()
   Future<void> _loadSavedAddresses() async {
     try {
       await _savedAddressService.initialize();
-      setState(() {
-        _savedAddresses = _savedAddressService.savedAddresses;
-      });
+      if (mounted) {
+        setState(() {
+          _savedAddresses = _savedAddressService.savedAddresses;
+        });
+      }
     } catch (e) {
-      print('Error loading saved addresses: $e');
+      if (EnvironmentConfig.logApiCalls) {
+        print('❌ Error loading saved addresses: $e');
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header with usage indicator (enhanced existing header)
-            _buildHeaderWithUsageIndicator(),
-            
-            // Main content (all existing functionality preserved)
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    
-                    // Route Input Section (completely preserved)
-                    _buildRouteInputSection(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Settings Section (completely preserved)
-                    _buildSettingsSection(),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Enhanced Optimize Button with usage tracking
-                    _buildEnhancedOptimizeButton(),
-                    
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                _buildHeader(),
+                
+                const SizedBox(height: 24),
+                
+                // Usage indicator
+                _buildUsageIndicator(),
+                
+                const SizedBox(height: 16),
+                
+                // Route Input Section
+                _buildRouteInputSection(),
+                
+                const SizedBox(height: 24),
+                
+                // Settings Section
+                _buildSettingsSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Optimize Button
+                _buildEnhancedOptimizeButton(),
+                
+                const SizedBox(height: 20),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ✅ ENHANCED: Header with usage indicator (preserves existing design)
-  Widget _buildHeaderWithUsageIndicator() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: Row(
-        children: [
-          // Existing header content (preserved)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Plan Your Route',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.headlineLarge?.color,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Drive Less, Save Time',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
+  // MARK: - Header Section
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Plan Your Route',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.headlineLarge?.color,
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
           ),
-          
-          // ✅ Enhanced usage indicator (replaces basic "0/∞ admin")
-          _buildUsageIndicator(),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Drive Less, Save Time',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 
-  // ✅ NEW: Enhanced usage indicator
+  // MARK: - Usage Indicator
   Widget _buildUsageIndicator() {
     return Consumer<UsageTrackingService>(
       builder: (context, usageService, child) {
         final todayUsage = usageService.todayUsage;
-        final isAdmin = usageService.remainingRoutes == 999;
+        // ✅ FIXED: Use remainingRoutes getter instead of remainingUsage
+        final remainingUsage = usageService.remainingRoutes;
         final usagePercentage = usageService.usagePercentage;
         
-        // Color based on usage level
         Color indicatorColor;
-        String usageText;
-        
-        if (isAdmin) {
-          indicatorColor = Colors.purple[400]!;
-          usageText = '∞';
-        } else if (usagePercentage >= 1.0) {
-          indicatorColor = Colors.red[400]!;
-          usageText = '$todayUsage/10';
-        } else if (usagePercentage >= 0.8) {
-          indicatorColor = Colors.orange[400]!;
-          usageText = '$todayUsage/10';
+        if (usagePercentage <= 0.7) {
+          indicatorColor = const Color(0xFF34C759); // Green
+        } else if (usagePercentage <= 0.9) {
+          indicatorColor = Colors.orange; // Orange
         } else {
-          indicatorColor = const Color(0xFF34C759);
-          usageText = '$todayUsage/10';
+          indicatorColor = Colors.red; // Red
         }
-        
+
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: indicatorColor.withOpacity(0.1),
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: indicatorColor.withOpacity(0.3),
               width: 1,
             ),
           ),
-          child: Column(
+          child: Row(
             children: [
-              Text(
-                usageText,
-                style: TextStyle(
-                  color: indicatorColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+              Icon(
+                Icons.analytics,
+                color: indicatorColor,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily Usage: $todayUsage/10',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    LinearProgressIndicator(
+                      value: usagePercentage,
+                      backgroundColor: indicatorColor.withOpacity(0.2),
+                      valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
+                      minHeight: 4,
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 12),
               Text(
-                isAdmin ? 'admin' : 'searches',
+                '$remainingUsage left',
                 style: TextStyle(
                   color: indicatorColor.withOpacity(0.7),
-                  fontSize: 10,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
@@ -232,7 +245,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // MARK: - Route Input Section (completely preserved)
+  // MARK: - Route Input Section
   Widget _buildRouteInputSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardColor = Theme.of(context).cardTheme.color ?? 
@@ -253,7 +266,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       ),
       child: Column(
         children: [
-          // Start location with saved addresses (preserved)
+          // Start location with saved addresses
           _buildLocationInput(
             controller: _startLocationController,
             icon: Icons.trip_origin,
@@ -273,7 +286,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             },
           ),
           
-          // Stops (preserved)
+          // Stops
           for (int i = 0; i < _stopControllers.length; i++)
             Column(
               children: [
@@ -301,12 +314,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           
           const SizedBox(height: 20),
           
-          // Add Stop button (preserved)
+          // Add Stop button
           _buildAddStopButton(),
           
           const SizedBox(height: 20),
           
-          // End location (preserved)
+          // End location
           _buildLocationInput(
             controller: _endLocationController,
             icon: Icons.flag,
@@ -328,7 +341,356 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // ✅ ENHANCED: Optimize button with usage tracking
+  // MARK: - Location Input Widget
+  Widget _buildLocationInput({
+    required TextEditingController controller,
+    required IconData icon,
+    required String hintText,
+    required String fieldId,
+    bool isStart = false,
+    int? stopIndex,
+    required Color iconColor,
+    required bool isDisabled,
+    required Function(String) onAddressSelected,
+    VoidCallback? onRemove,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Row(
+      children: [
+        // Icon buttons for saved addresses (home/work)
+        if (isStart || stopIndex != null) ...[
+          Row(
+            children: [
+              // Home icon
+              GestureDetector(
+                onTap: !isDisabled ? () {
+                  HapticFeedback.lightImpact();
+                  _selectSavedAddress(SavedAddressType.home, controller, onAddressSelected);
+                } : null,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: !isDisabled 
+                        ? const Color(0xFF34C759).withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: !isDisabled
+                          ? const Color(0xFF34C759).withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.home,
+                    color: !isDisabled ? const Color(0xFF34C759) : Colors.grey,
+                    size: 18,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 8),
+              
+              // Work icon
+              GestureDetector(
+                onTap: !isDisabled ? () {
+                  HapticFeedback.lightImpact();
+                  _selectSavedAddress(SavedAddressType.work, controller, onAddressSelected);
+                } : null,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: !isDisabled 
+                        ? const Color(0xFF1976D2).withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: !isDisabled
+                          ? const Color(0xFF1976D2).withOpacity(0.3)
+                          : Colors.grey.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.business,
+                    color: !isDisabled ? const Color(0xFF1976D2) : Colors.grey,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(width: 12),
+        ],
+        
+        // Current location icon (only for start and stops)
+        if (isStart || stopIndex != null) ...[
+          GestureDetector(
+            onTap: !isDisabled ? () {
+              HapticFeedback.lightImpact();
+              _useCurrentLocation(isStart, stopIndex: stopIndex);
+            } : null,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: !isDisabled 
+                    ? iconColor.withOpacity(0.1) 
+                    : Colors.grey.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: !isDisabled
+                      ? iconColor.withOpacity(0.3)
+                      : Colors.grey.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                icon,
+                color: !isDisabled ? iconColor : Colors.grey,
+                size: 18,
+              ),
+            ),
+          ),
+          
+          const SizedBox(width: 12),
+        ],
+        
+        Expanded(
+          child: _isLoadingLocation(fieldId)
+              ? Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
+                      ),
+                    ),
+                  ),
+                )
+              : AutocompleteTextField(
+                  controller: controller,
+                  // ✅ CORRECT: Using 'hint' parameter (not 'hintText')
+                  hint: hintText,
+                  icon: icon,
+                  iconColor: iconColor,
+                  enabled: !isDisabled,
+                  onPlaceSelected: (place) {
+                    onAddressSelected(place.formattedAddress);
+                  },
+                  onChanged: () {
+                    // Handle text changes if needed
+                  },
+                ),
+        ),
+        
+        if (onRemove != null) ...[
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onRemove();
+            },
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.red.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: const Icon(
+                Icons.close,
+                color: Colors.red,
+                size: 16,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // MARK: - Add Stop Button
+  Widget _buildAddStopButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _addStop();
+      },
+      child: Container(
+        width: double.infinity,
+        height: 48,
+        decoration: BoxDecoration(
+          color: const Color(0xFF34C759).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFF34C759).withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add,
+              color: Color(0xFF34C759),
+              size: 20,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Add Stop',
+              style: TextStyle(
+                color: Color(0xFF34C759),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // MARK: - Settings Section
+  Widget _buildSettingsSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = Theme.of(context).cardTheme.color ?? 
+                     (isDark ? const Color(0xFF1C1C1E) : Colors.white);
+    
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark ? [] : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Round Trip Toggle
+          _buildToggleItem(
+            icon: Icons.sync,
+            iconColor: const Color(0xFF34C759),
+            title: 'Round Trip',
+            subtitle: 'Return to starting location',
+            value: _isRoundTrip,
+            onChanged: (value) {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _isRoundTrip = value;
+                if (_isRoundTrip) {
+                  _tempEndLocation = _endLocationController.text;
+                  _tempEndAddress = _endLocationAddress;
+                  _endLocationController.text = _startLocationController.text;
+                  _endLocationAddress = _startLocationAddress;
+                } else {
+                  _endLocationController.text = _tempEndLocation;
+                  _endLocationAddress = _tempEndAddress;
+                }
+              });
+            },
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Traffic Toggle
+          _buildToggleItem(
+            icon: Icons.traffic,
+            iconColor: Colors.orange,
+            title: 'Consider Traffic',
+            subtitle: 'Include current traffic conditions',
+            value: _includeTraffic,
+            onChanged: (value) {
+              HapticFeedback.lightImpact();
+              setState(() {
+                _includeTraffic = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: iconColor,
+          activeTrackColor: iconColor.withOpacity(0.3),
+        ),
+      ],
+    );
+  }
+
+  // MARK: - Enhanced Optimize Button
   Widget _buildEnhancedOptimizeButton() {
     final hasValidInputs = _startLocationController.text.isNotEmpty && 
                           _endLocationController.text.isNotEmpty;
@@ -367,7 +729,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           ),
         ),
         child: _isOptimizing
-            ? Row(
+            ? const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
@@ -378,8 +740,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Text(
+                  SizedBox(width: 12),
+                  Text(
                     'Optimizing Route...',
                     style: TextStyle(
                       color: Colors.white,
@@ -389,16 +751,16 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                   ),
                 ],
               )
-            : Row(
+            : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.map_outlined,
+                  Icon(
+                    Icons.map,
                     color: Colors.white,
                     size: 20,
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
+                  SizedBox(width: 8),
+                  Text(
                     'Optimize Route',
                     style: TextStyle(
                       color: Colors.white,
@@ -412,53 +774,186 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // ✅ ENHANCED: Route calculation with usage tracking
-  Future<void> _handleEnhancedOptimizeRoute() async {
-    // Haptic feedback for button press
-    HapticFeedback.lightImpact();
-    
-    final usageService = context.read<UsageTrackingService>();
-    
-    // Check usage limits
-    final canCalculate = await usageService.canPerformRouteCalculation();
-    if (!canCalculate) {
-      final shouldProceed = await usageService.showUsageWarningIfNeeded(context);
-      if (!shouldProceed) return;
-    } else {
-      final shouldProceed = await usageService.showUsageWarningIfNeeded(context);
-      if (!shouldProceed) return;
-    }
-    
-    // Proceed with existing route calculation (preserved)
-    await _optimizeRoute();
+  // MARK: - Helper Methods
+
+  void _addStop() {
+    setState(() {
+      _stopControllers.add(TextEditingController());
+      _stopAddresses.add('');
+    });
   }
 
-  // MARK: - Preserved Methods (all existing functionality)
-  
-  Future<void> _optimizeRoute() async {
-    if (_isOptimizing) return;
+  void _removeStop(int index) {
+    setState(() {
+      _stopControllers[index].dispose();
+      _stopControllers.removeAt(index);
+      if (index < _stopAddresses.length) {
+        _stopAddresses.removeAt(index);
+      }
+    });
+  }
+
+  void _selectSavedAddress(SavedAddressType type, TextEditingController controller, Function(String) onAddressSelected) {
+    final address = _savedAddresses.firstWhere(
+      (addr) => addr.addressType == type,
+      orElse: () => SavedAddress(
+        id: '',
+        label: '',
+        fullAddress: '',
+        displayName: '',
+        addressType: type,
+        createdDate: DateTime.now(),
+      ),
+    );
+    
+    if (address.fullAddress.isNotEmpty) {
+      controller.text = address.displayName.isNotEmpty ? address.displayName : address.fullAddress;
+      onAddressSelected(address.fullAddress);
+    }
+  }
+
+  Future<void> _useCurrentLocation(bool isStart, {int? stopIndex}) async {
+    final fieldId = isStart ? 'start' : (stopIndex != null ? 'stop_$stopIndex' : 'end');
+    
+    setState(() {
+      _loadingStates[fieldId] = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw 'Location services are disabled.';
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw 'Location permissions are denied';
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Location permissions are permanently denied, we cannot request permissions.';
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      
+      // Reverse geocode
+      // ✅ CORRECT: Using EnvironmentConfig.apiKey
+      final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=${EnvironmentConfig.apiKey}';
+      final response = await http.get(Uri.parse(url));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'OK' && data['results'].isNotEmpty) {
+          final address = data['results'][0]['formatted_address'] as String;
+          
+          if (mounted) {
+            setState(() {
+              if (isStart) {
+                _startLocationController.text = 'Current Location';
+                _startLocationAddress = address;
+                if (_isRoundTrip) {
+                  _endLocationController.text = 'Current Location';
+                  _endLocationAddress = address;
+                }
+              } else if (stopIndex != null) {
+                _stopControllers[stopIndex].text = 'Current Location';
+                while (_stopAddresses.length <= stopIndex) {
+                  _stopAddresses.add('');
+                }
+                _stopAddresses[stopIndex] = address;
+              } else {
+                _endLocationController.text = 'Current Location';
+                _endLocationAddress = address;
+              }
+            });
+            
+            // Success haptic feedback
+            HapticFeedback.lightImpact();
+          }
+        } else {
+          throw 'Unable to get address for current location';
+        }
+      } else {
+        throw 'Failed to get current location address';
+      }
+    } catch (e) {
+      if (mounted) {
+        // Error haptic feedback
+        HapticFeedback.heavyImpact();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error getting current location: $e'),
+            backgroundColor: Colors.red[400],
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingStates[fieldId] = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleEnhancedOptimizeRoute() async {
+    // Check usage limits first
+    final usageService = context.read<UsageTrackingService>();
+    // ✅ FIXED: Use canPerformRouteCalculation() instead of canMakeRequest()
+    if (!await usageService.canPerformRouteCalculation()) {
+      HapticFeedback.heavyImpact();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Daily usage limit reached (10 searches per day). Please try again tomorrow.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Validation
+    if (_startLocationController.text.isEmpty || _endLocationController.text.isEmpty) {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both start and end locations'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _isOptimizing = true;
     });
 
+    // Success haptic feedback
+    HapticFeedback.mediumImpact();
+
     try {
-      // Collect stop addresses (preserved logic)
-      List<String> stops = [];
-      for (int i = 0; i < _stopControllers.length; i++) {
-        if (i < _stopAddresses.length && _stopAddresses[i].isNotEmpty) {
-          stops.add(_stopAddresses[i]);
-        }
-      }
+      // Prepare data
+      final List<String> stops = _stopControllers
+          .asMap()
+          .entries
+          .where((entry) => entry.value.text.isNotEmpty)
+          .map((entry) => _stopAddresses.length > entry.key ? _stopAddresses[entry.key] : entry.value.text)
+          .toList();
 
-      List<String> stopDisplayNames = [];
-      for (int i = 0; i < _stopControllers.length; i++) {
-        stopDisplayNames.add(_stopControllers[i].text);
-      }
+      final List<String> stopDisplayNames = _stopControllers
+          .where((controller) => controller.text.isNotEmpty)
+          .map((controller) => controller.text)
+          .toList();
 
-      // Create original inputs (preserved)
+      // Create original inputs
       final originalInputs = OriginalRouteInputs(
-        startLocation: _startLocationAddress,
+        startLocation: _startLocationAddress.isNotEmpty ? _startLocationAddress : _startLocationController.text,
         endLocation: _isRoundTrip ? _startLocationAddress : _endLocationAddress,
         stops: stops,
         startLocationDisplayName: _startLocationController.text,
@@ -468,7 +963,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         includeTraffic: _includeTraffic,
       );
 
-      // Call route optimization service (preserved)
+      // Call route optimization service
       final routeResult = await _routeService.calculateOptimizedRoute(
         startLocation: originalInputs.startLocation,
         endLocation: originalInputs.endLocation,
@@ -476,10 +971,10 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         originalInputs: originalInputs,
       );
 
-      // ✅ Increment usage counter
-      await context.read<UsageTrackingService>().incrementUsage();
+      // Increment usage counter
+      await usageService.incrementUsage();
 
-      // Navigate to results (preserved)
+      // Navigate to results
       if (mounted) {
         Navigator.push(
           context,
@@ -514,455 +1009,5 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         });
       }
     }
-  }
-
-  // All other methods preserved exactly as they were...
-  // (buildLocationInput, buildSettingsSection, etc.)
-  
-  Widget _buildLocationInput({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hintText,
-    required String fieldId,
-    bool isStart = false,
-    int? stopIndex,
-    required Color iconColor,
-    required bool isDisabled,
-    required Function(String) onAddressSelected,
-    VoidCallback? onRemove,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Saved addresses chips (preserved)
-        if (isStart && _savedAddresses.isNotEmpty) ...[
-          SizedBox(
-            height: 44,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _savedAddresses.length,
-              itemBuilder: (context, index) {
-                final address = _savedAddresses[index];
-                final addressType = address.addressType;
-                
-                Color addressColor;
-                IconData addressIcon;
-                
-                switch (addressType) {
-                  case SavedAddressType.home:
-                    addressColor = const Color(0xFF34C759);
-                    addressIcon = Icons.home;
-                    break;
-                  case SavedAddressType.work:
-                    addressColor = Colors.blue;
-                    addressIcon = Icons.work;
-                    break;
-                  case SavedAddressType.custom:
-                  default:
-                    addressColor = Colors.orange;
-                    addressIcon = Icons.place;
-                    break;
-                }
-                
-                return Padding(
-                  padding: EdgeInsets.only(right: index < _savedAddresses.length - 1 ? 8 : 0),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      _selectSavedAddress(address, isStart, stopIndex: stopIndex);
-                    },
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: addressColor.withOpacity(0.1),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: addressColor.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Icon(
-                        addressIcon,
-                        color: addressColor,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        
-        // Location input field (preserved)
-        Row(
-          children: [
-            GestureDetector(
-              onTap: !isDisabled ? () {
-                HapticFeedback.lightImpact();
-                _useCurrentLocation(isStart, stopIndex: stopIndex);
-              } : null,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: !isDisabled 
-                      ? iconColor.withOpacity(0.1) 
-                      : Colors.grey.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: !isDisabled
-                        ? iconColor.withOpacity(0.3)
-                        : Colors.grey.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Icon(
-                  icon,
-                  color: !isDisabled ? iconColor : Colors.grey,
-                  size: 18,
-                ),
-              ),
-            ),
-            
-            const SizedBox(width: 12),
-            
-            Expanded(
-              child: _isLoadingLocation(fieldId)
-                  ? Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
-                          ),
-                        ),
-                      ),
-                    )
-                  : AutocompleteTextField(
-                      controller: controller,
-                      hintText: hintText,
-                      enabled: !isDisabled,
-                      onPlaceSelected: (place) {
-                        onAddressSelected(place.formattedAddress);
-                      },
-                      onChanged: (value) {
-                        // Handle text changes if needed
-                      },
-                    ),
-            ),
-            
-            if (onRemove != null) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  onRemove();
-                },
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.red,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingsSection() {
-    return Column(
-      children: [
-        _buildSettingCard(
-          icon: Icons.sync_alt,
-          title: 'Round Trip',
-          subtitle: 'Return to starting location',
-          value: _isRoundTrip,
-          onChanged: (value) {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _isRoundTrip = value;
-              if (_isRoundTrip && _endLocationController.text.isNotEmpty) {
-                _tempEndLocation = _endLocationController.text;
-                _tempEndAddress = _endLocationAddress;
-                _endLocationController.text = _startLocationController.text;
-                _endLocationAddress = _startLocationAddress;
-              } else if (!_isRoundTrip && _tempEndLocation.isNotEmpty) {
-                _endLocationController.text = _tempEndLocation;
-                _endLocationAddress = _tempEndAddress;
-                _tempEndLocation = '';
-                _tempEndAddress = '';
-              }
-            });
-          },
-        ),
-        
-        const SizedBox(height: 16),
-        
-        _buildSettingCard(
-          icon: Icons.traffic,
-          title: 'Consider Traffic',
-          subtitle: 'Include current traffic conditions',
-          value: _includeTraffic,
-          onChanged: (value) {
-            HapticFeedback.selectionClick();
-            setState(() {
-              _includeTraffic = value;
-            });
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSettingCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardTheme.color ?? 
-                     (isDark ? const Color(0xFF1C1C1E) : Colors.white);
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF34C759).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF34C759),
-              size: 20,
-            ),
-          ),
-          
-          const SizedBox(width: 16),
-          
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFF34C759),
-            activeTrackColor: const Color(0xFF34C759).withOpacity(0.3),
-            inactiveThumbColor: Colors.grey[400],
-            inactiveTrackColor: Colors.grey[700],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddStopButton() {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        _addStop();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: const Color(0xFF34C759),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Add Stop',
-              style: TextStyle(
-                color: const Color(0xFF34C759),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Helper methods (all preserved)
-  void _addStop() {
-    setState(() {
-      _stopControllers.add(TextEditingController());
-      _stopAddresses.add('');
-    });
-  }
-
-  void _removeStop(int index) {
-    setState(() {
-      _stopControllers[index].dispose();
-      _stopControllers.removeAt(index);
-      if (index < _stopAddresses.length) {
-        _stopAddresses.removeAt(index);
-      }
-    });
-  }
-
-  void _selectSavedAddress(SavedAddress address, bool isStart, {int? stopIndex}) {
-    if (isStart) {
-      setState(() {
-        _startLocationController.text = address.displayName;
-        _startLocationAddress = address.fullAddress;
-        if (_isRoundTrip) {
-          _endLocationController.text = _startLocationController.text;
-          _endLocationAddress = _startLocationAddress;
-        }
-      });
-    } else if (stopIndex != null) {
-      setState(() {
-        _stopControllers[stopIndex].text = address.displayName;
-        while (_stopAddresses.length <= stopIndex) {
-          _stopAddresses.add('');
-        }
-        _stopAddresses[stopIndex] = address.fullAddress;
-      });
-    }
-  }
-
-  Future<void> _useCurrentLocation(bool isStart, {int? stopIndex}) async {
-    final fieldId = isStart ? 'start' : (stopIndex != null ? 'stop_$stopIndex' : 'end');
-    
-    setState(() {
-      _loadingStates[fieldId] = true;
-    });
-
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      
-      final address = await _reverseGeocode(position.latitude, position.longitude);
-      
-      if (isStart) {
-        setState(() {
-          _startLocationController.text = 'Current Location';
-          _startLocationAddress = address;
-          if (_isRoundTrip) {
-            _endLocationController.text = _startLocationController.text;
-            _endLocationAddress = _startLocationAddress;
-          }
-        });
-      } else if (stopIndex != null) {
-        setState(() {
-          _stopControllers[stopIndex].text = 'Current Location';
-          while (_stopAddresses.length <= stopIndex) {
-            _stopAddresses.add('');
-          }
-          _stopAddresses[stopIndex] = address;
-        });
-      } else {
-        setState(() {
-          _endLocationController.text = 'Current Location';
-          _endLocationAddress = address;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to get current location: $e'),
-            backgroundColor: Colors.red[400],
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _loadingStates[fieldId] = false;
-      });
-    }
-  }
-
-  Future<String> _reverseGeocode(double lat, double lng) async {
-    try {
-      final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=$lat,$lng&key=${EnvironmentConfig.googleAPIKey}';
-      final response = await http.get(Uri.parse(url));
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['results'] != null && data['results'].isNotEmpty) {
-          return data['results'][0]['formatted_address'];
-        }
-      }
-    } catch (e) {
-      print('❌ Reverse geocoding error: $e');
-    }
-    
-    return '$lat, $lng';
-  }
-
-  @override
-  void dispose() {
-    _startLocationController.dispose();
-    _endLocationController.dispose();
-    for (var controller in _stopControllers) {
-      controller.dispose();
-    }
-    super.dispose();
   }
 }
