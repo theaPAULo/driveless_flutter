@@ -1,7 +1,7 @@
 // lib/services/usage_tracking_service.dart
 //
-// Complete usage tracking service that preserves existing functionality
-// Works behind the scenes with minimal UI impact
+// UPDATED: Added your email to admin list for unlimited usage
+// ✅ Added: psoni511@gmail.com to ADMIN_EMAILS
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,9 +23,10 @@ class UsageTrackingService extends ChangeNotifier {
   int get remainingRoutes => _isAdminUser() ? 999 : (DAILY_LIMIT - _todayUsage).clamp(0, DAILY_LIMIT);
   double get usagePercentage => _isAdminUser() ? 0.0 : (_todayUsage / DAILY_LIMIT).clamp(0.0, 1.0);
   
-  // Admin emails
+  // ✅ UPDATED: Added your email for admin access
   static const List<String> ADMIN_EMAILS = [
     'drivelesssavetime@gmail.com',
+    'psoni511@gmail.com', // ✅ Added your email for admin privileges
   ];
   
   Future<void> initialize() async {
@@ -166,17 +167,8 @@ class UsageTrackingService extends ChangeNotifier {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey[400], fontSize: 16)),
-          ),
-          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34C759),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            child: const Text('Continue', style: TextStyle(color: Color(0xFF34C759), fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -192,24 +184,19 @@ class UsageTrackingService extends ChangeNotifier {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(Icons.block_rounded, color: Colors.red[400], size: 28),
+            Icon(Icons.block, color: Colors.red[400], size: 28),
             const SizedBox(width: 12),
             const Text('Daily Limit Reached', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
           ],
         ),
         content: const Text(
-          'You have reached your daily limit of 10 route calculations. Please try again tomorrow.',
+          'You have reached your daily limit of $DAILY_LIMIT route calculations. Please try again tomorrow.',
           style: TextStyle(color: Colors.white70, fontSize: 16),
         ),
         actions: [
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF34C759),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('OK', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            child: const Text('OK', style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ],
       ),

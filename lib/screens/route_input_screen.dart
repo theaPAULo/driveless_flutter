@@ -1,9 +1,8 @@
 // lib/screens/route_input_screen.dart
 //
-// FIXED: Route input screen matching iOS UI exactly
-// ✅ Fixed: Saved address buttons above each input field
-// ✅ Fixed: Compact usage indicator in top-right corner
-// ✅ Fixed: Admin shows ∞ for unlimited usage
+// FIXED: Current location button positioning
+// ✅ Fixed: Current location button moved to left of text input
+// ✅ Fixed: Saved address buttons stay above input field
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -140,7 +139,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               ),
             ),
             
-            // ✅ FIXED: Compact usage indicator in top-right corner
+            // Compact usage indicator in top-right corner
             _buildCompactUsageIndicator(),
           ],
         ),
@@ -173,7 +172,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // ✅ FIXED: Compact usage indicator in top-right corner (like iOS)
+  // Compact usage indicator in top-right corner (like iOS)
   Widget _buildCompactUsageIndicator() {
     return Positioned(
       top: 16,
@@ -203,7 +202,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  // ✅ FIXED: Show ∞ for admin users
+                  // Show ∞ for admin users
                   isAdmin ? '$todayUsage/∞' : '$todayUsage/10',
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyLarge?.color,
@@ -247,7 +246,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       ),
       child: Column(
         children: [
-          // ✅ FIXED: Start location with saved addresses ABOVE input
+          // Start location with saved addresses ABOVE input
           _buildLocationInputWithSavedAddresses(
             controller: _startLocationController,
             icon: Icons.trip_origin,
@@ -300,7 +299,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           
           const SizedBox(height: 20),
           
-          // ✅ FIXED: End location with saved addresses ABOVE input
+          // End location with saved addresses ABOVE input
           _buildLocationInputWithSavedAddresses(
             controller: _endLocationController,
             icon: Icons.flag,
@@ -322,7 +321,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // ✅ FIXED: Location input with saved addresses displayed ABOVE each field (like iOS)
+  // ✅ FIXED: Location input with proper button positioning
   Widget _buildLocationInputWithSavedAddresses({
     required TextEditingController controller,
     required IconData icon,
@@ -338,7 +337,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ✅ FIXED: Saved address buttons displayed horizontally ABOVE input field
+        // ✅ Saved address buttons displayed horizontally ABOVE input field
         if (_savedAddresses.isNotEmpty && !isDisabled) ...[
           Row(
             children: [
@@ -393,43 +392,45 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
                   ),
                 ),
               ),
-              
-              // Current location button (for start and stops)
-              if (isStart || stopIndex != null) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.lightImpact();
-                    _useCurrentLocation(isStart, stopIndex: stopIndex);
-                  },
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: iconColor.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.my_location,
-                      color: iconColor,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
           
           const SizedBox(height: 12),
         ],
         
-        // Input field with remove button
+        // ✅ FIXED: Input field row with current location button to the LEFT of text input
         Row(
           children: [
+            // ✅ FIXED: Current location button positioned to LEFT of text input (for start, stops, AND destination)
+            if (!isDisabled) ...[
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _useCurrentLocation(isStart, stopIndex: stopIndex);
+                },
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: iconColor.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.my_location,
+                    color: iconColor,
+                    size: 18,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+            ],
+            
+            // Text input field
             Expanded(
               child: _isLoadingLocation(fieldId)
                   ? Container(
