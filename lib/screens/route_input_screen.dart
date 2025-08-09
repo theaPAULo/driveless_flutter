@@ -106,42 +106,39 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Main content
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ✅ FIXED: Usage indicator in normal flow (scrolls with content)
+                Row(
                   children: [
-                    // Header with space for usage indicator
-                    _buildHeader(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Route Input Section
-                    _buildRouteInputSection(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Settings Section
-                    _buildSettingsSection(),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // Optimize Button
-                    _buildEnhancedOptimizeButton(),
-                    
-                    const SizedBox(height: 20),
+                    Expanded(child: _buildHeader()),
+                    _buildCompactUsageIndicator(),
                   ],
                 ),
-              ),
+                
+                const SizedBox(height: 24),
+                
+                // Route Input Section
+                _buildRouteInputSection(),
+                
+                const SizedBox(height: 24),
+                
+                // Settings Section
+                _buildSettingsSection(),
+                
+                const SizedBox(height: 32),
+                
+                // Optimize Button
+                _buildEnhancedOptimizeButton(),
+                
+                const SizedBox(height: 20),
+              ],
             ),
-            
-            // Compact usage indicator in top-right corner
-            _buildCompactUsageIndicator(),
-          ],
+          ),
         ),
       ),
     );
@@ -172,56 +169,52 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // Compact usage indicator in top-right corner (like iOS)
+  // ✅ FIXED: Compact usage indicator (now scrolls with content)
   Widget _buildCompactUsageIndicator() {
-    return Positioned(
-      top: 16,
-      right: 20,
-      child: Consumer<UsageTrackingService>(
-        builder: (context, usageService, child) {
-          final todayUsage = usageService.todayUsage;
-          final isAdmin = usageService.remainingRoutes == 999; // Admin check
-          
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.9),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isAdmin 
-                    ? Colors.purple.withOpacity(0.3)
-                    : (todayUsage >= 10 
-                        ? Colors.red.withOpacity(0.3)
-                        : (todayUsage >= 8 
-                            ? Colors.orange.withOpacity(0.3) 
-                            : Colors.green.withOpacity(0.3))),
-                width: 1,
+    return Consumer<UsageTrackingService>(
+      builder: (context, usageService, child) {
+        final todayUsage = usageService.todayUsage;
+        final isAdmin = usageService.remainingRoutes == 999; // Admin check
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isAdmin 
+                  ? Colors.purple.withOpacity(0.3)
+                  : (todayUsage >= 10 
+                      ? Colors.red.withOpacity(0.3)
+                      : (todayUsage >= 8 
+                          ? Colors.orange.withOpacity(0.3) 
+                          : Colors.green.withOpacity(0.3))),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                // Show ∞ for admin users
+                isAdmin ? '$todayUsage/∞' : '$todayUsage/10',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  // Show ∞ for admin users
-                  isAdmin ? '$todayUsage/∞' : '$todayUsage/10',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+              Text(
+                isAdmin ? 'admin' : 'searches',
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  fontSize: 10,
                 ),
-                Text(
-                  isAdmin ? 'admin' : 'searches',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -780,7 +773,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
     
     if (address.fullAddress.isNotEmpty) {
-      controller.text = address.displayName.isNotEmpty ? address.displayName : address.fullAddress;
+      // ✅ FIXED: Use full address instead of display name to prevent autocomplete suggestions
+      controller.text = address.fullAddress;
       onAddressSelected(address.fullAddress);
     }
   }
