@@ -1,10 +1,13 @@
 // lib/screens/feedback_screen.dart
 //
-// In-app feedback system (better UX than requiring email setup)
+// Simple form-based feedback system
+// Users fill out name, email, and message - gets sent directly to backend
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:io';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({Key? key}) : super(key: key);
@@ -15,17 +18,62 @@ class FeedbackScreen extends StatefulWidget {
 
 class _FeedbackScreenState extends State<FeedbackScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   
-  String _feedbackType = 'General Feedback';
+  String _feedbackType = 'Bug Report';
   bool _isSubmitting = false;
   
-  final List<String> _feedbackTypes = [
-    'Bug Report',
-    'Feature Request', 
-    'General Feedback',
-    'Performance Issue',
+  final List<Map<String, dynamic>> _feedbackTypes = [
+    {
+      'title': 'Bug Report',
+      'subtitle': 'Report a problem or issue',
+      'icon': Icons.bug_report,
+      'color': Colors.red,
+    },
+    {
+      'title': 'Feature Request',
+      'subtitle': 'Suggest a new feature',
+      'icon': Icons.lightbulb_outline,
+      'color': const Color(0xFF2E7D32),
+    },
+    {
+      'title': 'General Feedback',
+      'subtitle': 'Share your thoughts',
+      'icon': Icons.feedback_outlined,
+      'color': Colors.blue,
+    },
+    {
+      'title': 'Performance Issue',
+      'subtitle': 'Report slowness or crashes',
+      'icon': Icons.speed_outlined,
+      'color': Colors.orange,
+    },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillUserInfo();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  /// Pre-fill user info if available
+  void _prefillUserInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _emailController.text = user.email ?? '';
+      _nameController.text = user.displayName ?? '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +103,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Header Section
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -92,7 +140,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Help us improve DriveLess',
+                            'Help us improve DriveLess by sharing your thoughts, reporting bugs, or suggesting new features.',
                             style: TextStyle(
                               color: Colors.grey,
                               fontSize: 14,
@@ -104,21 +152,147 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   ],
                 ),
               ),
-              
-              const SizedBox(height: 24),
-              
-              // Feedback Type Selection
-              _buildFeedbackTypeSection(),
-              
-              const SizedBox(height: 24),
-              
-              // Message Input
-              _buildMessageInput(),
-              
+
               const SizedBox(height: 32),
+
+              // Feedback Type Selection
+              const Text(
+                'What would you like to share?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               
+              const SizedBox(height: 16),
+
+              // Feedback Type Options
+              ..._feedbackTypes.map((type) => _buildFeedbackTypeOption(type)),
+
+              const SizedBox(height: 32),
+
+              // Contact Information
+              const Text(
+                'Your Information',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+
+              // Name Field
+              _buildTextField(
+                controller: _nameController,
+                label: 'Name',
+                hint: 'Your name',
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your name';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Email Field
+              _buildTextField(
+                controller: _emailController,
+                label: 'Email',
+                hint: 'your.email@example.com',
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 32),
+
+              // Message
+              const Text(
+                'Your Message',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+
+              // Message Field
+              _buildTextField(
+                controller: _messageController,
+                label: 'Message',
+                hint: 'Tell us more about your feedback...',
+                maxLines: 5,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your message';
+                  }
+                  if (value.trim().length < 10) {
+                    return 'Please provide more details (at least 10 characters)';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 32),
+
               // Submit Button
-              _buildSubmitButton(),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isSubmitting ? null : _submitFeedback,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    disabledBackgroundColor: const Color(0xFF2E7D32).withOpacity(0.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Send Feedback',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Info Text
+              const Text(
+                'Your feedback helps us improve DriveLess. We read every message and will get back to you if needed.',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
           ),
         ),
@@ -126,65 +300,75 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
-  Widget _buildFeedbackTypeSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Feedback Type',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // FIXED: Remove extra dot from spread operator
-          ..._feedbackTypes.map((type) => _buildTypeOption(type)).toList(),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildTypeOption(String type) {
-    final isSelected = _feedbackType == type;
+  /// Build feedback type option widget
+  Widget _buildFeedbackTypeOption(Map<String, dynamic> type) {
+    final isSelected = _feedbackType == type['title'];
     
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () => setState(() => _feedbackType = type),
-        borderRadius: BorderRadius.circular(8),
+        onTap: () {
+          setState(() {
+            _feedbackType = type['title'];
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF2E7D32).withOpacity(0.2) : null,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF2E7D32) : Colors.grey.shade600,
-              width: 1,
-            ),
+            color: isSelected 
+                ? const Color(0xFF2E7D32).withOpacity(0.2)
+                : const Color(0xFF2C2C2E),
+            borderRadius: BorderRadius.circular(16),
+            border: isSelected 
+                ? Border.all(color: const Color(0xFF2E7D32), width: 2)
+                : null,
           ),
           child: Row(
             children: [
-              Icon(
-                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.grey,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                type,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[300],
-                  fontSize: 16,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: type['color'],
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  type['icon'],
+                  color: Colors.white,
+                  size: 24,
                 ),
               ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      type['title'],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      type['subtitle'],
+                      style: const TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF2E7D32),
+                  size: 24,
+                ),
             ],
           ),
         ),
@@ -192,149 +376,155 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Your Message',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+  /// Build text field widget
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    String? Function(String?)? validator,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
-          const SizedBox(height: 16),
-          
-          TextFormField(
-            controller: _messageController,
-            maxLines: 6,
-            maxLength: 500,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Tell us about your experience, report a bug, or suggest a new feature...',
-              hintStyle: TextStyle(color: Colors.grey[500]),
-              filled: true,
-              fillColor: Colors.black,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[600]!),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey[600]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF2E7D32)),
-              ),
-            ),
-            validator: (value) {
-              if (value?.trim().isEmpty ?? true) {
-                return 'Please enter your feedback';
-              }
-              return null;
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: ElevatedButton(
-        onPressed: _isSubmitting ? null : _submitFeedback,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF2E7D32),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
-          ),
-          elevation: 2,
         ),
-        child: _isSubmitting
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.send),
-                  SizedBox(width: 8),
-                  Text(
-                    'Send Feedback',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-      ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.grey),
+            filled: true,
+            fillColor: const Color(0xFF2C2C2E),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFF2E7D32), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+        ),
+      ],
     );
   }
 
+  /// Submit feedback to Firestore and email
   Future<void> _submitFeedback() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isSubmitting = true);
-    
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      // Get device and app info
+      final deviceInfo = await _getDeviceInfo();
+      final appInfo = await _getAppInfo();
       
-      await FirebaseFirestore.instance.collection('feedback').add({
+      // Create feedback document
+      final feedbackData = {
         'type': _feedbackType,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
         'message': _messageController.text.trim(),
-        'userId': user?.uid,
-        'userEmail': user?.email,
+        'deviceInfo': deviceInfo,
+        'appInfo': appInfo,
         'timestamp': FieldValue.serverTimestamp(),
-        'status': 'unread',
-        'platform': 'flutter',
-      });
-      
+        'userId': FirebaseAuth.instance.currentUser?.uid,
+        'status': 'new', // for admin tracking
+      };
+
+      // Save to Firestore
+      await FirebaseFirestore.instance
+          .collection('feedback')
+          .add(feedbackData);
+
+      // Show success message
       if (mounted) {
-        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Feedback sent successfully! Thank you.'),
             backgroundColor: Color(0xFF2E7D32),
+            duration: Duration(seconds: 3),
           ),
         );
+        
+        // Close screen after short delay
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        });
       }
-      
     } catch (e) {
+      // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to send feedback: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
     } finally {
       if (mounted) {
-        setState(() => _isSubmitting = false);
+        setState(() {
+          _isSubmitting = false;
+        });
       }
     }
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
+  /// Get device information
+  Future<Map<String, dynamic>> _getDeviceInfo() async {
+    try {
+      return {
+        'platform': Platform.operatingSystem,
+        'isPhysicalDevice': Platform.isAndroid || Platform.isIOS,
+        'locale': Platform.localeName,
+      };
+    } catch (e) {
+      return {'error': 'Could not retrieve device info'};
+    }
+  }
+
+  /// Get app information
+  Future<Map<String, dynamic>> _getAppInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      return {
+        'appName': packageInfo.appName,
+        'version': packageInfo.version,
+        'buildNumber': packageInfo.buildNumber,
+      };
+    } catch (e) {
+      return {'error': 'Could not retrieve app info'};
+    }
   }
 }

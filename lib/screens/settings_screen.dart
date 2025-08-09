@@ -1,11 +1,12 @@
 // lib/screens/settings_screen.dart
 //
-// Settings screen with functional theme management and app preferences
-// Now connected to ThemeProvider for immediate theme switching
+// Settings screen with original design + Terms/Privacy/Rate links added
+// Reverted to original clean layout as requested
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/theme_provider.dart';
 import '../utils/constants.dart';
@@ -18,12 +19,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Settings state (theme is now managed by ThemeProvider)
+  bool _isLoading = true;
+  
+  // Route defaults
   bool _defaultRoundTrip = false;
   bool _defaultTrafficConsideration = true;
+  
+  // UI preferences
   bool _hapticFeedback = true;
+  
+  // Distance unit
   String _defaultDistanceUnit = 'miles';
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -31,7 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadSettings();
   }
 
-  /// Load settings from SharedPreferences (excluding theme)
+  /// Load settings from SharedPreferences
   Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -110,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: const Text(
                   'Done',
                   style: TextStyle(
-                    color: Color(0xFF34C759), // Always green
+                    color: Color(0xFF34C759),
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                   ),
@@ -146,157 +152,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // MARK: - Settings Content
+  // MARK: - Settings Content (Original Design)
   Widget _buildSettingsContent(ThemeProvider themeProvider) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Appearance Section
-          _buildSettingsSection(
-            title: 'Appearance',
-            icon: Icons.palette_outlined,
-            children: [
-              _buildThemeSelector(themeProvider),
-            ],
-          ),
+          // APPEARANCE Section
+          _buildSectionHeader('APPEARANCE'),
+          _buildSettingsCard([
+            _buildThemeSelector(themeProvider),
+          ]),
 
-          const SizedBox(height: 24),
+          // HAPTIC FEEDBACK Section  
+          _buildSectionHeader('HAPTIC FEEDBACK'),
+          _buildSettingsCard([
+            _buildSwitchSetting(
+              'Haptic Feedback',
+              'Feel vibrations for button taps and events',
+              _hapticFeedback,
+              (value) {
+                setState(() {
+                  _hapticFeedback = value;
+                });
+                _saveSettings();
+              },
+            ),
+          ]),
 
-          // Route Defaults Section
-          _buildSettingsSection(
-            title: 'Route Defaults',
-            icon: Icons.route_outlined,
-            children: [
-              _buildSwitchSetting(
-                'Round Trip by Default',
-                'New routes will be round trip',
-                _defaultRoundTrip,
-                (value) {
-                  setState(() {
-                    _defaultRoundTrip = value;
-                  });
-                  _saveSettings();
-                },
-              ),
-              const Divider(color: Colors.grey, height: 1),
-              _buildSwitchSetting(
-                'Consider Traffic',
-                'Include current traffic in route calculations',
-                _defaultTrafficConsideration,
-                (value) {
-                  setState(() {
-                    _defaultTrafficConsideration = value;
-                  });
-                  _saveSettings();
-                },
-              ),
-            ],
-          ),
+          // ROUTE DEFAULTS Section
+          _buildSectionHeader('ROUTE DEFAULTS'),
+          _buildSettingsCard([
+            _buildSwitchSetting(
+              'Default Round Trip',
+              'Return to starting location by default',
+              _defaultRoundTrip,
+              (value) {
+                setState(() {
+                  _defaultRoundTrip = value;
+                });
+                _saveSettings();
+              },
+            ),
+            const Divider(height: 1, color: Colors.grey),
+            _buildSwitchSetting(
+              'Consider Traffic',
+              'Include current traffic in route calculations',
+              _defaultTrafficConsideration,
+              (value) {
+                setState(() {
+                  _defaultTrafficConsideration = value;
+                });
+                _saveSettings();
+              },
+            ),
+          ]),
 
-          const SizedBox(height: 24),
+          // PRIVACY & DATA Section
+          _buildSectionHeader('PRIVACY & DATA'),
+          _buildSettingsCard([
+            _buildSwitchSetting(
+              'Auto-Save Routes',
+              'Automatically save completed routes to history',
+              true, // This could be a setting if needed
+              (value) {
+                // Handle auto-save setting
+              },
+            ),
+            const Divider(height: 1, color: Colors.grey),
+            _buildNavigationSetting(
+              'Location Permissions',
+              'Manage location access settings',
+              Icons.location_on,
+              () {
+                // Could open app settings or location permissions
+              },
+            ),
+          ]),
 
-          // Distance Unit Section
-          _buildSettingsSection(
-            title: 'Units',
-            icon: Icons.straighten_outlined,
-            children: [
-              _buildDistanceUnitSelector(),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Preferences Section
-          _buildSettingsSection(
-            title: 'Preferences',
-            icon: Icons.tune_outlined,
-            children: [
-              _buildSwitchSetting(
-                'Haptic Feedback',
-                'Feel vibrations for button taps and events',
-                _hapticFeedback,
-                (value) {
-                  setState(() {
-                    _hapticFeedback = value;
-                  });
-                  _saveSettings();
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // About Section
-          _buildSettingsSection(
-            title: 'About',
-            icon: Icons.info_outline,
-            children: [
-              _buildInfoItem('Version', '1.0.0'),
-              const Divider(color: Colors.grey, height: 1),
-              _buildInfoItem('Build', '1'),
-            ],
-          ),
+          // ABOUT Section
+          _buildSectionHeader('ABOUT'),
+          _buildSettingsCard([
+            _buildInfoItem('Version', '1.0.0'),
+            const Divider(height: 1, color: Colors.grey),
+            _buildInfoItem('DriveLess for iOS', ''),
+            const Divider(height: 1, color: Colors.grey),
+            _buildNavigationSetting(
+              'Terms & Conditions',
+              'View terms of service',
+              Icons.description,
+              _openTermsAndConditions,
+            ),
+            const Divider(height: 1, color: Colors.grey),
+            _buildNavigationSetting(
+              'Privacy Policy',
+              'How we handle your data',
+              Icons.privacy_tip,
+              _openPrivacyPolicy,
+            ),
+            const Divider(height: 1, color: Colors.grey),
+            _buildNavigationSetting(
+              'Rate DriveLess',
+              'Rate us on the App Store',
+              Icons.star,
+              _openAppStoreRating,
+            ),
+          ]),
 
           const SizedBox(height: 40),
 
           // Reset Button
-          _buildResetButton(),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: _buildResetButton(),
+          ),
         ],
       ),
     );
   }
 
-  // MARK: - Settings Section Builder
-  Widget _buildSettingsSection({
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
+  // MARK: - Section Header (Original Style)
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: Colors.grey,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  // MARK: - Settings Card (Original Style)
+  Widget _buildSettingsCard(List<Widget> children) {
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Section Header
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Icon(
-                  icon, 
-                  color: const Color(0xFF34C759),
-                  size: 24,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Section Content
-          ...children.map((child) => child).toList(),
-        ],
+        children: children,
       ),
     );
   }
 
-  // MARK: - Theme Selector (Now functional!)
+  // MARK: - Theme Selector (Original Design)
   Widget _buildThemeSelector(ThemeProvider themeProvider) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -305,109 +313,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
             style: TextStyle(
               color: Theme.of(context).textTheme.bodyLarge?.color,
               fontSize: 16,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Text(
+            'Choose your preferred appearance',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 20),
           
-          // Theme options as iOS-style capsule buttons
+          // Theme buttons in a row
           Row(
-            children: AppThemeMode.values.map((theme) {
-              final isSelected = themeProvider.currentTheme == theme;
-              
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () async {
-                      await themeProvider.setTheme(theme);
-                      // Show success message
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Theme changed to ${theme.displayName}'),
-                            backgroundColor: const Color(0xFF34C759),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected 
-                          ? const Color(0xFF34C759)
-                          : Colors.grey.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            theme.icon,
-                            color: isSelected 
-                              ? Colors.white 
-                              : Theme.of(context).textTheme.bodyMedium?.color,
-                            size: 20,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            theme.displayName,
-                            style: TextStyle(
-                              color: isSelected 
-                                ? Colors.white 
-                                : Theme.of(context).textTheme.bodyMedium?.color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+            children: [
+              Expanded(
+                child: _buildThemeButton(
+                  icon: Icons.wb_sunny,
+                  label: 'Light',
+                  isSelected: themeProvider.currentTheme == AppThemeMode.light,
+                  onTap: () => themeProvider.setTheme(AppThemeMode.light),
                 ),
-              );
-            }).toList(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildThemeButton(
+                  icon: Icons.nightlight_round,
+                  label: 'Dark',
+                  isSelected: themeProvider.currentTheme == AppThemeMode.dark,
+                  onTap: () => themeProvider.setTheme(AppThemeMode.dark),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildThemeButton(
+                  icon: Icons.settings_brightness,
+                  label: 'System',
+                  isSelected: themeProvider.currentTheme == AppThemeMode.system,
+                  onTap: () => themeProvider.setTheme(AppThemeMode.system),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // MARK: - Distance Unit Selector
-  Widget _buildDistanceUnitSelector() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Distance Unit',
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontSize: 16,
-            ),
+  // MARK: - Theme Button
+  Widget _buildThemeButton({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF34C759) : Colors.transparent,
+          borderRadius: BorderRadius.circular(50),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF34C759) : Colors.grey.shade300,
+            width: 2,
           ),
-          DropdownButton<String>(
-            value: _defaultDistanceUnit,
-            dropdownColor: Theme.of(context).cardTheme.color,
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-              fontSize: 16,
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Colors.white : Colors.grey.shade600,
+              size: 24,
             ),
-            items: const [
-              DropdownMenuItem(value: 'miles', child: Text('Miles')),
-              DropdownMenuItem(value: 'kilometers', child: Text('Kilometers')),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _defaultDistanceUnit = value;
-                });
-                _saveSettings();
-              }
-            },
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.grey.shade600,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -420,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Function(bool) onChanged,
   ) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
           Expanded(
@@ -435,14 +426,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -450,10 +443,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: value,
             onChanged: onChanged,
             activeColor: const Color(0xFF34C759),
-            inactiveThumbColor: Colors.grey[400],
-            inactiveTrackColor: Colors.grey[300],
           ),
         ],
+      ),
+    );
+  }
+
+  // MARK: - Navigation Setting (NEW - for Terms, Privacy, etc.)
+  Widget _buildNavigationSetting(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: const Color(0xFF34C759),
+              size: 24,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.grey[400],
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -461,7 +507,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // MARK: - Info Item
   Widget _buildInfoItem(String title, String value) {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -472,13 +518,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               fontSize: 16,
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 16,
+          if (value.isNotEmpty)
+            Text(
+              value,
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 16,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -515,7 +562,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: Theme.of(context).cardTheme.color,
+          backgroundColor: Theme.of(context).cardColor,
           title: Text(
             'Reset Settings',
             style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
@@ -526,7 +573,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context),
               child: const Text(
                 'Cancel',
                 style: TextStyle(color: Colors.grey),
@@ -566,6 +613,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         );
       },
+    );
+  }
+
+  // MARK: - Navigation Methods
+  
+  /// Open Terms & Conditions
+  Future<void> _openTermsAndConditions() async {
+    const url = 'https://lessdriving.netlify.app/terms';
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _showUrlError('Terms & Conditions');
+      }
+    } catch (e) {
+      _showUrlError('Terms & Conditions');
+    }
+  }
+
+  /// Open Privacy Policy
+  Future<void> _openPrivacyPolicy() async {
+    const url = 'https://lessdriving.netlify.app/privacy';
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _showUrlError('Privacy Policy');
+      }
+    } catch (e) {
+      _showUrlError('Privacy Policy');
+    }
+  }
+
+  /// Open App Store Rating
+  Future<void> _openAppStoreRating() async {
+    // You can update these URLs with your actual app store links
+    const appStoreUrl = 'https://apps.apple.com/app/driveless/id123456789'; 
+    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.driveless.app';
+    
+    try {
+      const url = appStoreUrl; // Use appropriate URL based on platform
+      final uri = Uri.parse(url);
+      
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        _showUrlError('App Store');
+      }
+    } catch (e) {
+      _showUrlError('App Store');
+    }
+  }
+
+  /// Show error when URL can't be opened
+  void _showUrlError(String linkType) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Unable to open $linkType. Please try again later.'),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 }

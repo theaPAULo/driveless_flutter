@@ -20,8 +20,9 @@ dependencies:
 
   # Google Maps & URL Launcher (preserved)
   google_maps_flutter: ^2.5.0
-  url_launcher: ^6.2.1
-
+  url_launcher: ^6.2.2
+  package_info_plus: ^4.2.0
+  
   # Firebase & Authentication (preserved)
   firebase_core: ^2.32.0
   firebase_auth: ^4.20.0
