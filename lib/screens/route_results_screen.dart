@@ -28,10 +28,10 @@ class RouteResultsScreen extends StatefulWidget {
 }
 
 class _RouteResultsScreenState extends State<RouteResultsScreen> {
-  bool _trafficEnabled = false; // Traffic toggle state
-  bool _isRouteSaved = false; // Track if route is saved
-  bool _isSaving = false; // Track saving state
-  SavedRoute? _savedRoute; // Reference to saved route if exists
+bool _trafficEnabled = false; // Traffic toggle state
+bool _isFavorited = false; // Track if route is favorited
+bool _isTogglingFavorite = false; // Track favorite toggle state
+SavedRoute? _savedRoute; // Reference to saved route if exists
 
   @override
   void initState() {
@@ -39,23 +39,23 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     // Initialize traffic state from original inputs
     _trafficEnabled = widget.originalInputs.includeTraffic;
     // Check if route is already saved
-    _checkIfRouteSaved();
+    _checkIfRouteFavorited();
   }
 
-  /// Check if current route is already saved
-  Future<void> _checkIfRouteSaved() async {
-    try {
-      final SavedRoute? existingRoute = await RouteStorageService.findSimilarRoute(widget.routeResult);
-      if (mounted) {
-        setState(() {
-          _isRouteSaved = existingRoute != null;
-          _savedRoute = existingRoute;
-        });
-      }
-    } catch (e) {
-      print('Error checking saved route: $e');
+/// Check if current route is already favorited
+Future<void> _checkIfRouteFavorited() async {
+  try {
+    final SavedRoute? existingRoute = await RouteStorageService.findSimilarRoute(widget.routeResult);
+    if (mounted) {
+      setState(() {
+        _isFavorited = existingRoute?.isFavorite ?? false;
+        _savedRoute = existingRoute;
+      });
     }
+  } catch (e) {
+    print('Error checking favorited route: $e');
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -203,103 +203,90 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     }
   }
   
-  // MARK: - Save Route Functionality
-  Future<void> _saveRoute(BuildContext context) async {
-    if (_isRouteSaved) {
-      // Show route already saved message
+// MARK: - Favorite Toggle Functionality
+/// Toggle favorite status of the route
+Future<void> _toggleFavorite(BuildContext context) async {
+  setState(() {
+    _isTogglingFavorite = true;
+  });
+
+  try {
+    SavedRoute routeToUpdate;
+    
+    if (_savedRoute == null) {
+      // Route doesn't exist in storage yet, create it as favorited
+      routeToUpdate = await RouteStorageService.saveRoute(
+        routeResult: widget.routeResult,
+        originalInputs: widget.originalInputs,
+      );
+      // Mark it as favorite
+      routeToUpdate = routeToUpdate.copyWith(isFavorite: true);
+      await RouteStorageService.updateRoute(routeToUpdate);
+    } else {
+      // Route exists, toggle its favorite status
+      routeToUpdate = _savedRoute!.copyWith(isFavorite: !_savedRoute!.isFavorite);
+      await RouteStorageService.updateRoute(routeToUpdate);
+    }
+
+    if (mounted) {
+      setState(() {
+        _isFavorited = routeToUpdate.isFavorite;
+        _savedRoute = routeToUpdate;
+        _isTogglingFavorite = false;
+      });
+
+      // Show success feedback
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.info_outline, color: Colors.white),
+              Icon(
+                routeToUpdate.isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: Colors.white,
+              ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text('Route "${_savedRoute?.name ?? 'Unknown'}" is already saved'),
+                child: Text(
+                  routeToUpdate.isFavorite 
+                      ? 'Added to favorites'
+                      : 'Removed from favorites'
+                ),
               ),
             ],
           ),
-          backgroundColor: const Color(0xFF007AFF), // iOS blue
+          backgroundColor: routeToUpdate.isFavorite 
+              ? const Color(0xFF34C759) 
+              : const Color(0xFF2E7D32),
           duration: const Duration(seconds: 2),
         ),
       );
-      return;
     }
 
-    setState(() {
-      _isSaving = true;
-    });
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _isTogglingFavorite = false;
+      });
 
-    try {
-      // Save the route
-      final SavedRoute savedRoute = await RouteStorageService.saveRoute(
-        routeResult: widget.routeResult,
-        originalInputs: widget.originalInputs,
+      // Show error feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Error updating favorite: ${e.toString()}'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFFFF3B30), // iOS red
+          duration: const Duration(seconds: 3),
+        ),
       );
-
-      if (mounted) {
-        setState(() {
-          _isRouteSaved = true;
-          _savedRoute = savedRoute;
-          _isSaving = false;
-        });
-
-        // Show success feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Route saved as "${savedRoute.name}"'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF34C759),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: 'VIEW',
-              textColor: Colors.white,
-              onPressed: () {
-                // TODO: Navigate to saved routes list (future feature)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Saved routes view coming soon!'),
-                    backgroundColor: Color(0xFF007AFF),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      }
-
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-
-        // Show error feedback
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Failed to save route: ${e.toString()}'),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFFFF3B30), // iOS red
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
     }
   }
+}
 
   // MARK: - Summary Card (Dark theme card)
   Widget _buildSummaryCard() {
@@ -672,54 +659,54 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       child: SafeArea(
         child: Row(
           children: [
-            // Save Route button (outlined style)
-            Expanded(
-              child: Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
-                    width: 1.5,
-                  ),
-                  borderRadius: BorderRadius.circular(25),
-                  color: _isRouteSaved ? const Color(0xFF34C759).withOpacity(0.1) : null,
-                ),
-                child: TextButton(
-                  onPressed: _isSaving ? null : () => _saveRoute(context),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (_isSaving) ...[
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ] else ...[
-                        Icon(
-                          _isRouteSaved ? Icons.favorite : Icons.favorite_border,
-                          color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Text(
-                        _isRouteSaved ? 'Saved' : 'Save Route',
-                        style: TextStyle(
-                          color: _isRouteSaved ? const Color(0xFF34C759) : Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+// Favorite Toggle button (outline style)
+Expanded(
+  child: Container(
+    height: 50,
+    decoration: BoxDecoration(
+      border: Border.all(
+        color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
+        width: 1.5,
+      ),
+      borderRadius: BorderRadius.circular(25),
+      color: _isFavorited ? const Color(0xFF34C759).withOpacity(0.1) : null,
+    ),
+    child: TextButton(
+      onPressed: _isTogglingFavorite ? null : () => _toggleFavorite(context),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (_isTogglingFavorite) ...[
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             ),
+            const SizedBox(width: 8),
+          ] else ...[
+            Icon(
+              _isFavorited ? Icons.favorite : Icons.favorite_border,
+              color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            _isFavorited ? 'Favorited' : 'Add Favorite',
+            style: TextStyle(
+              color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+),
             
             const SizedBox(width: 12),
             
