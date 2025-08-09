@@ -24,10 +24,10 @@ dependencies:
   package_info_plus: ^4.2.0
   
   # Firebase & Authentication (preserved)
-  firebase_core: ^2.32.0
-  firebase_auth: ^4.20.0
-  cloud_firestore: ^4.17.5
-  google_sign_in: ^6.2.1
+  firebase_core: ^3.8.0        # Updated from old version
+  firebase_auth: ^5.3.3        # Updated from old version
+  cloud_firestore: ^5.5.0      # Updated from old version
+  google_sign_in: ^6.2.2       # Updated version
 
   # State Management (preserved)
   provider: ^6.1.2

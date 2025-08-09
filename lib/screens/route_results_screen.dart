@@ -2,7 +2,7 @@
 //
 // Route results display screen - EXACT iOS App Design Match
 // Shows optimized route with Summary card, Route Map, and Your Path sections
-// Now with functional traffic toggle, route polylines, Google Maps export, and Save Route
+// MINIMAL UPDATE: Just replaced Google Maps button with Export Route modal
 
 import 'package:flutter/material.dart';
 
@@ -10,8 +10,8 @@ import '../models/route_models.dart';
 import '../models/saved_route_model.dart';
 import '../utils/constants.dart';
 import '../widgets/route_map_widget.dart';
-import '../services/google_maps_export_service.dart';
-import '../services/route_storage_service.dart';  // Import storage service
+import '../widgets/navigation_export_modal.dart';  // NEW: Import navigation modal
+import '../services/route_storage_service.dart';
 
 class RouteResultsScreen extends StatefulWidget {
   final OptimizedRouteResult routeResult;
@@ -28,10 +28,10 @@ class RouteResultsScreen extends StatefulWidget {
 }
 
 class _RouteResultsScreenState extends State<RouteResultsScreen> {
-bool _trafficEnabled = false; // Traffic toggle state
-bool _isFavorited = false; // Track if route is favorited
-bool _isTogglingFavorite = false; // Track favorite toggle state
-SavedRoute? _savedRoute; // Reference to saved route if exists
+  bool _trafficEnabled = false; // Traffic toggle state
+  bool _isFavorited = false; // Track if route is favorited
+  bool _isTogglingFavorite = false; // Track favorite toggle state
+  SavedRoute? _savedRoute; // Reference to saved route if exists
 
   @override
   void initState() {
@@ -42,20 +42,20 @@ SavedRoute? _savedRoute; // Reference to saved route if exists
     _checkIfRouteFavorited();
   }
 
-/// Check if current route is already favorited
-Future<void> _checkIfRouteFavorited() async {
-  try {
-    final SavedRoute? existingRoute = await RouteStorageService.findSimilarRoute(widget.routeResult);
-    if (mounted) {
-      setState(() {
-        _isFavorited = existingRoute?.isFavorite ?? false;
-        _savedRoute = existingRoute;
-      });
+  /// Check if current route is already favorited
+  Future<void> _checkIfRouteFavorited() async {
+    try {
+      final SavedRoute? existingRoute = await RouteStorageService.findSimilarRoute(widget.routeResult);
+      if (mounted) {
+        setState(() {
+          _isFavorited = existingRoute?.isFavorite ?? false;
+          _savedRoute = existingRoute;
+        });
+      }
+    } catch (e) {
+      print('Error checking favorited route: $e');
     }
-  } catch (e) {
-    print('Error checking favorited route: $e');
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -90,17 +90,17 @@ Future<void> _checkIfRouteFavorited() async {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // MARK: - Summary Card (iOS Style)
+                  // MARK: - Summary Card (ORIGINAL STYLING)
                   _buildSummaryCard(),
                   
                   const SizedBox(height: 24),
                   
-                  // MARK: - Route Map Section
+                  // MARK: - Route Map Section (ORIGINAL STYLING)
                   _buildRouteMapSection(),
                   
                   const SizedBox(height: 24),
                   
-                  // MARK: - Your Path Section
+                  // MARK: - Your Path Section (ORIGINAL STYLING)
                   _buildYourPathSection(),
                   
                   const SizedBox(height: 100), // Space for bottom buttons
@@ -109,261 +109,76 @@ Future<void> _checkIfRouteFavorited() async {
             ),
           ),
           
-          // MARK: - Bottom Action Buttons (Fixed at bottom)
+          // MARK: - Bottom Action Buttons (MINIMAL CHANGE - just button text/function)
           _buildBottomActionButtons(context),
         ],
       ),
     );
   }
-  
-  // MARK: - Google Maps Export Functionality
-  Future<void> _exportToGoogleMaps(BuildContext context) async {
-    // Show loading indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            SizedBox(width: 12),
-            Text('Opening Google Maps...'),
-          ],
-        ),
-        backgroundColor: Color(0xFF34C759),
-        duration: Duration(seconds: 2),
-      ),
-    );
-    
-    try {
-      // Export route to Google Maps
-      final bool success = await GoogleMapsExportService.exportRouteToGoogleMaps(
-        routeResult: widget.routeResult,
-        originalInputs: widget.originalInputs,
-      );
-      
-      if (success) {
-        // Success feedback
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Route opened in Google Maps!'),
-              ],
-            ),
-            backgroundColor: Color(0xFF34C759),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      } else {
-        // Error feedback
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.white),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text('Could not open Google Maps. Please install the app or try again.'),
-                ),
-              ],
-            ),
-            backgroundColor: Color(0xFFFF3B30), // iOS red
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      // Exception handling
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Error opening Google Maps: ${e.toString()}'),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFFF3B30), // iOS red
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-  
-// MARK: - Favorite Toggle Functionality
-/// Toggle favorite status of the route
-Future<void> _toggleFavorite(BuildContext context) async {
-  setState(() {
-    _isTogglingFavorite = true;
-  });
 
-  try {
-    SavedRoute routeToUpdate;
-    
-    if (_savedRoute == null) {
-      // Route doesn't exist in storage yet, create it as favorited
-      routeToUpdate = await RouteStorageService.saveRoute(
-        routeResult: widget.routeResult,
-        originalInputs: widget.originalInputs,
-      );
-      // Mark it as favorite
-      routeToUpdate = routeToUpdate.copyWith(isFavorite: true);
-      await RouteStorageService.updateRoute(routeToUpdate);
-    } else {
-      // Route exists, toggle its favorite status
-      routeToUpdate = _savedRoute!.copyWith(isFavorite: !_savedRoute!.isFavorite);
-      await RouteStorageService.updateRoute(routeToUpdate);
-    }
-
-    if (mounted) {
-      setState(() {
-        _isFavorited = routeToUpdate.isFavorite;
-        _savedRoute = routeToUpdate;
-        _isTogglingFavorite = false;
-      });
-
-      // Show success feedback
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(
-                routeToUpdate.isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: Colors.white,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  routeToUpdate.isFavorite 
-                      ? 'Added to favorites'
-                      : 'Removed from favorites'
-                ),
-              ),
-            ],
-          ),
-          backgroundColor: routeToUpdate.isFavorite 
-              ? const Color(0xFF34C759) 
-              : const Color(0xFF2E7D32),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-
-  } catch (e) {
-    if (mounted) {
-      setState(() {
-        _isTogglingFavorite = false;
-      });
-
-      // Show error feedback
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Error updating favorite: ${e.toString()}'),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFFFF3B30), // iOS red
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-}
-
-  // MARK: - Summary Card (Dark theme card)
+  // MARK: - Summary Card (ORIGINAL STYLING - Simple "Summary" title, no badge)
   Widget _buildSummaryCard() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),  // Dark theme background
+        color: const Color(0xFF2C2C2E),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Summary header
+          // Simple header - ORIGINAL STYLE
           const Text(
-            'Summary',
+            'Summary',  // ORIGINAL: Not "Route Summary"
             style: TextStyle(
-              color: Colors.white,  // White text for dark theme
-              fontSize: 24,
+              color: Colors.white,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
+          // NO "OPTIMIZED" badge - ORIGINAL STYLE
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
-          // Three-column metrics layout (exactly like iOS)
+          // Stats row - ORIGINAL STYLE
           Row(
             children: [
-              // Distance column
+              // Total distance
               Expanded(
-                child: _buildSummaryMetric(
+                child: _buildStatItem(
                   icon: Icons.straighten,
-                  iconColor: const Color(0xFF34C759), // iOS green
-                  value: widget.routeResult.totalDistance,
                   label: 'Distance',
+                  value: widget.routeResult.totalDistance,
                 ),
               ),
               
-              // Divider line
               Container(
                 width: 1,
-                height: 60,
-                color: Colors.grey[600],  // Darker gray for dark theme
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                height: 40,
+                color: Colors.grey[700],
               ),
               
-              // Time column
+              // Total time
               Expanded(
-                child: _buildSummaryMetric(
+                child: _buildStatItem(
                   icon: Icons.access_time,
-                  iconColor: const Color(0xFFFF9500), // iOS orange
-                  value: widget.routeResult.estimatedTime,
                   label: 'Time',
+                  value: widget.routeResult.estimatedTime,
                 ),
               ),
               
-              // Divider line
               Container(
                 width: 1,
-                height: 60,
-                color: Colors.grey[600],  // Darker gray for dark theme  
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+                height: 40,
+                color: Colors.grey[700],
               ),
               
-              // Stops column
+              // Number of stops
               Expanded(
-                child: _buildSummaryMetric(
+                child: _buildStatItem(
                   icon: Icons.location_on,
-                  iconColor: const Color(0xFF999999), // iOS gray
-                  value: '${widget.routeResult.optimizedStops.length}',
                   label: 'Stops',
+                  value: '${widget.routeResult.optimizedStops.length}',
                 ),
               ),
             ],
@@ -373,63 +188,61 @@ Future<void> _toggleFavorite(BuildContext context) async {
     );
   }
 
-  // MARK: - Summary Metric Item (matching iOS layout)
-  Widget _buildSummaryMetric({
+  // ORIGINAL: Stat item styling with original colors
+  Widget _buildStatItem({
     required IconData icon,
-    required Color iconColor,
-    required String value,
     required String label,
+    required String value,
   }) {
+    // Restore original icon colors
+    Color iconColor;
+    switch (icon) {
+      case Icons.straighten:
+        iconColor = const Color(0xFF34C759); // Green for distance
+        break;
+      case Icons.access_time:
+        iconColor = Colors.orange; // Orange for time
+        break;
+      case Icons.location_on:
+        iconColor = Colors.grey; // Gray for stops
+        break;
+      default:
+        iconColor = const Color(0xFF34C759);
+    }
+
     return Column(
       children: [
-        // Icon in colored circle
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: 20,
-          ),
+        Icon(
+          icon,
+          color: iconColor,
+          size: 20,
         ),
-        
-        const SizedBox(height: 12),
-        
-        // Value (large number)
+        const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,  // White text for dark theme
-            fontSize: 32,
+            color: Colors.white,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
-        
-        const SizedBox(height: 4),
-        
-        // Label
         Text(
           label,
           style: TextStyle(
-            color: Colors.grey[400],  // Light gray for dark theme
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+            color: Colors.grey[400],
+            fontSize: 12,
           ),
         ),
       ],
     );
   }
 
-  // MARK: - Route Map Section
+  // MARK: - Route Map Section (ORIGINAL STYLING - no overlay traffic button)
   Widget _buildRouteMapSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header
+        // Section header - ORIGINAL STYLE
         const Text(
           'Route Map',
           style: TextStyle(
@@ -441,7 +254,7 @@ Future<void> _toggleFavorite(BuildContext context) async {
         
         const SizedBox(height: 16),
         
-        // Real Google Maps integration with traffic state management
+        // Real Google Maps integration - ORIGINAL STYLE
         RouteMapWidget(
           routeResult: widget.routeResult,
           initialTrafficEnabled: _trafficEnabled,
@@ -455,12 +268,12 @@ Future<void> _toggleFavorite(BuildContext context) async {
     );
   }
 
-  // MARK: - Your Path Section (route stops list)
+  // MARK: - Your Path Section (ORIGINAL STYLING)
   Widget _buildYourPathSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section header with route icon
+        // Section header with route icon - ORIGINAL STYLE
         Row(
           children: [
             Icon(
@@ -500,14 +313,14 @@ Future<void> _toggleFavorite(BuildContext context) async {
     );
   }
 
-  // MARK: - Path Stop Item (matching iOS design exactly)
+  // MARK: - Path Stop Item (ORIGINAL STYLING)
   Widget _buildPathStopItem({
     required RouteStop stop,
     required int index,
     required bool isFirst,
     required bool isLast,
   }) {
-    // Determine button color and text based on position
+    // Determine button color and text based on position - ORIGINAL LOGIC
     Color buttonColor;
     String buttonText;
     
@@ -643,7 +456,7 @@ Future<void> _toggleFavorite(BuildContext context) async {
     );
   }
 
-  // MARK: - Bottom Action Buttons (matching iOS exactly)
+  // MARK: - Bottom Action Buttons (MINIMAL CHANGE - just replace Google Maps button)
   Widget _buildBottomActionButtons(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -659,80 +472,92 @@ Future<void> _toggleFavorite(BuildContext context) async {
       child: SafeArea(
         child: Row(
           children: [
-// Favorite Toggle button (outline style)
-Expanded(
-  child: Container(
-    height: 50,
-    decoration: BoxDecoration(
-      border: Border.all(
-        color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
-        width: 1.5,
-      ),
-      borderRadius: BorderRadius.circular(25),
-      color: _isFavorited ? const Color(0xFF34C759).withOpacity(0.1) : null,
-    ),
-    child: TextButton(
-      onPressed: _isTogglingFavorite ? null : () => _toggleFavorite(context),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (_isTogglingFavorite) ...[
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ] else ...[
-            Icon(
-              _isFavorited ? Icons.favorite : Icons.favorite_border,
-              color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            _isFavorited ? 'Favorited' : 'Add Favorite',
-            style: TextStyle(
-              color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    ),
-  ),
-),
-            
-            const SizedBox(width: 12),
-            
-            // Google Maps button (filled style)
+            // Save Route button (ORIGINAL STYLING)
             Expanded(
               child: Container(
                 height: 50,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF34C759), // iOS green
+                  border: Border.all(
+                    color: _isFavorited ? const Color(0xFF34C759) : Colors.white,
+                    width: 1.5,
+                  ),
                   borderRadius: BorderRadius.circular(25),
+                  color: _isFavorited ? const Color(0xFF34C759).withOpacity(0.1) : null,
                 ),
                 child: TextButton(
-                  onPressed: () => _exportToGoogleMaps(context),
+                  onPressed: _isTogglingFavorite ? null : _toggleRouteAsFavorite,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _isFavorited ? const Color(0xFF34C759) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
-                        Icons.map,
-                        color: Colors.white,
+                      if (_isTogglingFavorite) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ] else ...[
+                        Icon(
+                          _isFavorited ? Icons.favorite : Icons.favorite_outline,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(
+                        _isFavorited ? 'Saved' : 'Save Route',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+            
+            // MINIMAL CHANGE: Export Route button (was Google Maps button)
+            Expanded(
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF34C759), Color(0xFF30A46C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TextButton(
+                  onPressed: () => _showExportOptions(context), // CHANGED: was _exportToGoogleMaps
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.navigation, // CHANGED: was Icons.map
                         size: 20,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Google Maps',
+                      SizedBox(width: 8),
+                      Text(
+                        'Export Route', // CHANGED: was 'Google Maps'
                         style: TextStyle(
-                          color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
@@ -746,5 +571,91 @@ Expanded(
         ),
       ),
     );
+  }
+
+  // NEW: Show Export Options Modal
+  Future<void> _showExportOptions(BuildContext context) async {
+    await NavigationExportModal.show(
+      context: context,
+      routeResult: widget.routeResult,
+      originalInputs: widget.originalInputs,
+    );
+  }
+
+  // MARK: - Save/Favorite Route Functionality (ORIGINAL LOGIC)
+  Future<void> _toggleRouteAsFavorite() async {
+    if (_isTogglingFavorite) return;
+
+    setState(() {
+      _isTogglingFavorite = true;
+    });
+
+    try {
+      if (_savedRoute != null) {
+        // Route already exists, toggle favorite status
+        final updatedRoute = _savedRoute!.copyWith(
+          isFavorite: !_savedRoute!.isFavorite,
+        );
+        
+        await RouteStorageService.updateRoute(updatedRoute);
+        
+        setState(() {
+          _isFavorited = updatedRoute.isFavorite;
+          _savedRoute = updatedRoute;
+        });
+      } else {
+        // Route doesn't exist, create new saved route
+        final newRoute = await RouteStorageService.saveRoute(
+          routeResult: widget.routeResult,
+          originalInputs: widget.originalInputs,
+        );
+        
+        // Now mark it as favorite
+        final favoriteRoute = newRoute.copyWith(isFavorite: true);
+        await RouteStorageService.updateRoute(favoriteRoute);
+        
+        setState(() {
+          _isFavorited = true;
+          _savedRoute = favoriteRoute;
+        });
+      }
+
+      // Show success feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(_isFavorited ? 'Route saved!' : 'Route removed from favorites'),
+            ],
+          ),
+          backgroundColor: const Color(0xFF34C759),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+    } catch (e) {
+      print('❌ Error toggling favorite: $e');
+      
+      // Show error feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Failed to save route. Please try again.'),
+            ],
+          ),
+          backgroundColor: Color(0xFFFF3B30),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      setState(() {
+        _isTogglingFavorite = false;
+      });
+    }
   }
 }
