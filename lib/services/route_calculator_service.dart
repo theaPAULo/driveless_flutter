@@ -7,6 +7,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'auto_save_service.dart';
 
 // Import our models and constants
 import '../models/route_models.dart';
@@ -63,8 +64,8 @@ class RouteCalculatorService {
       final DirectionsResponse response = await _makeDirectionsApiRequest(apiUrl);
       
       // Process and return optimized result
-      return _processDirectionsResponse(response, originalInputs);
-      
+      return await _processDirectionsResponse(response, originalInputs);
+
     } on RouteCalculationException {
       // Re-throw our custom exceptions
       rethrow;
@@ -225,10 +226,10 @@ class RouteCalculatorService {
   }
   
   /// Process Google Directions API response into our optimized result format
-  OptimizedRouteResult _processDirectionsResponse(
-    DirectionsResponse response,
-    OriginalRouteInputs originalInputs,
-  ) {
+    Future<OptimizedRouteResult> _processDirectionsResponse(
+      DirectionsResponse response,
+      OriginalRouteInputs originalInputs,
+    ) async {
     // Get the first (best) route from response
     final DirectionsRoute route = response.routes.first;
     
@@ -248,19 +249,27 @@ class RouteCalculatorService {
     // Get waypoint order (for optimization results)
     final List<int> waypointOrder = route.waypointOrder ?? [];
     
-    if (EnvironmentConfig.logApiCalls) {
-      print('✅ Route processed: $totalDistance, $totalTime, ${optimizedStops.length} stops');
-    }
-    
-    return OptimizedRouteResult(
-      totalDistance: totalDistance,
-      estimatedTime: totalTime,
-      optimizedStops: optimizedStops,
-      routePolyline: polyline,
-      legs: route.legs,
-      waypointOrder: waypointOrder,
-    );
-  }
+// Create the optimized route result
+final OptimizedRouteResult optimizedRoute = OptimizedRouteResult(
+  totalDistance: totalDistance,
+  estimatedTime: totalTime,
+  optimizedStops: optimizedStops,
+  routePolyline: polyline,
+  legs: route.legs,
+  waypointOrder: waypointOrder,
+);
+
+// Auto-save the route if enabled
+await AutoSaveService.autoSaveRouteIfEnabled(
+  routeResult: optimizedRoute,
+  originalInputs: originalInputs,
+);
+
+if (EnvironmentConfig.logApiCalls) {
+  print('✅ Route processed: $totalDistance, $totalTime, ${optimizedStops.length} stops');
+}
+
+return optimizedRoute;}
   
   /// Calculate total distance and time from all route legs
   (String, String) _calculateTotals(List<RouteLeg> legs) {

@@ -20,6 +20,8 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
+  bool _autoSaveRoutes = true;
+
   
   // Route defaults
   bool _defaultRoundTrip = false;
@@ -46,7 +48,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Route defaults
         _defaultRoundTrip = prefs.getBool('default_round_trip') ?? false;
         _defaultTrafficConsideration = prefs.getBool('default_traffic_consideration') ?? true;
-        
+        _autoSaveRoutes = prefs.getBool('auto_save_routes') ?? true;
+
         // UI preferences
         _hapticFeedback = prefs.getBool('haptic_feedback') ?? true;
         
@@ -74,7 +77,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await prefs.setBool('default_traffic_consideration', _defaultTrafficConsideration);
       await prefs.setBool('haptic_feedback', _hapticFeedback);
       await prefs.setString('distance_unit', _defaultDistanceUnit);
-      
+      await prefs.setBool('auto_save_routes', _autoSaveRoutes);
+
       if (EnvironmentConfig.logApiCalls) {
         print('✅ Settings saved successfully');
       }
@@ -211,14 +215,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // PRIVACY & DATA Section
           _buildSectionHeader('PRIVACY & DATA'),
           _buildSettingsCard([
-            _buildSwitchSetting(
-              'Auto-Save Routes',
-              'Automatically save completed routes to history',
-              true, // This could be a setting if needed
-              (value) {
-                // Handle auto-save setting
-              },
-            ),
+          _buildSwitchSetting(
+            'Auto-Save Routes',
+            'Automatically save completed routes to history',
+            _autoSaveRoutes,
+            (value) {
+              setState(() {
+                _autoSaveRoutes = value;
+              });
+              _saveSettings();
+              if (EnvironmentConfig.logApiCalls) {
+                print('🔄 Auto-save routes ${value ? 'enabled' : 'disabled'}');
+              }
+            },
+          ),
             const Divider(height: 1, color: Colors.grey),
             _buildNavigationSetting(
               'Location Permissions',

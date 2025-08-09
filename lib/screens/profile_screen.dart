@@ -28,7 +28,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   final SavedAddressService _addressService = SavedAddressService();
   
   // State for real stats (preserved)
@@ -36,42 +36,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingStats = true;
 
   @override
-  void initState() {
-    super.initState();
-    _addressService.initialize();
-    _loadRouteStatistics();
-    // Initialize usage tracking
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<UsageTrackingService>().initialize();
-      }
-    });
-  }
+  bool get wantKeepAlive => false; // Don't keep alive to ensure fresh data
 
-  /// Load real route statistics (preserved)
-  Future<void> _loadRouteStatistics() async {
-    try {
-      final stats = await RouteStorageService.getRouteStatistics();
-      if (mounted) {
-        setState(() {
-          _routeStats = stats;
-          _isLoadingStats = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoadingStats = false;
-        });
-      }
+@override
+void initState() {
+  super.initState();
+  _addressService.initialize();
+  _loadRouteStatistics();
+  
+  // Add observer to detect when app becomes active
+  WidgetsBinding.instance.addObserver(this);
+  
+  // Initialize usage tracking
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted) {
+      context.read<UsageTrackingService>().initialize();
+    }
+  });
+}
+
+@override
+void dispose() {
+  // Remove observer
+  WidgetsBinding.instance.removeObserver(this);
+  super.dispose();
+}
+
+@override
+void didChangeDependencies() {
+  super.didChangeDependencies();
+  // Refresh stats every time the screen becomes visible
+  // This happens when switching to the Profile tab
+  _refreshStatsIfNeeded();
+}
+
+@override
+void didChangeAppLifecycleState(AppLifecycleState state) {
+  super.didChangeAppLifecycleState(state);
+  // Refresh stats when app becomes active (user returns from background)
+  if (state == AppLifecycleState.resumed) {
+    _refreshStatsIfNeeded();
+  }
+}
+
+/// Refresh stats only if the screen is currently visible
+void _refreshStatsIfNeeded() {
+  if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+    _loadRouteStatistics();
+  }
+}
+
+/// Load real route statistics (preserved but enhanced with logging)
+Future<void> _loadRouteStatistics() async {
+  try {
+    if (EnvironmentConfig.logApiCalls) {
+      print('🔄 Loading route statistics for profile...');
+    }
+    
+    final stats = await RouteStorageService.getRouteStatistics();
+    if (mounted) {
+      setState(() {
+        _routeStats = stats;
+        _isLoadingStats = false;
+      });
+      
       if (EnvironmentConfig.logApiCalls) {
-        print('❌ Error loading route statistics: $e');
+        print('✅ Profile stats loaded: ${stats['totalRoutes']} routes, ${stats['milesSaved']} miles saved');
       }
     }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _isLoadingStats = false;
+      });
+    }
+    if (EnvironmentConfig.logApiCalls) {
+      print('❌ Error loading route statistics: $e');
+    }
   }
+}
 
   @override
   Widget build(BuildContext context) {
+      super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
