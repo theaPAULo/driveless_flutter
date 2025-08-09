@@ -12,6 +12,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
@@ -63,10 +65,27 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return _loadingStates[fieldId] ?? false;
   }
 
+    Future<void> _loadDefaultSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      setState(() {
+        _isRoundTrip = prefs.getBool('default_round_trip') ?? false;
+        _includeTraffic = prefs.getBool('default_traffic_consideration') ?? true;
+      });
+      
+      print('🔄 Settings reloaded - Round Trip: $_isRoundTrip, Traffic: $_includeTraffic');
+    } catch (e) {
+      print('❌ Error loading settings: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _loadSavedAddresses();
+    _loadDefaultSettings(); // Just load once on startup
+
     
     // Initialize usage tracking
     WidgetsBinding.instance.addPostFrameCallback((_) {

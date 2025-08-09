@@ -7,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:http/http.dart' as http;
 import 'dart:io';
+import 'dart:convert';
 
 class FeedbackScreen extends StatefulWidget {
   const FeedbackScreen({Key? key}) : super(key: key);
@@ -464,6 +466,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
           .collection('feedback')
           .add(feedbackData);
 
+      // Also send direct email notification
+      await _sendEmailNotification(feedbackData);
+
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -525,6 +530,46 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       };
     } catch (e) {
       return {'error': 'Could not retrieve app info'};
+    }
+  }
+
+  /// Send email notification directly (fallback method)
+  Future<void> _sendEmailNotification(Map<String, dynamic> feedbackData) async {
+    try {
+      // For now, we'll use a simple service like EmailJS or Formspree
+      // You can replace this with your preferred email service
+      
+      // Example with a simple HTTP POST to a backend service
+      // Replace with your actual email service endpoint
+      const emailServiceUrl = 'https://your-email-service.com/send'; // Replace this
+      
+      final emailPayload = {
+        'to': 'drivelesssavetime@gmail.com',
+        'subject': 'DriveLess Feedback: ${feedbackData['type']}',
+        'body': '''
+New feedback received:
+
+Type: ${feedbackData['type']}
+From: ${feedbackData['name']} (${feedbackData['email']})
+
+Message:
+${feedbackData['message']}
+
+Device Info: ${feedbackData['deviceInfo']}
+App Info: ${feedbackData['appInfo']}
+Time: ${DateTime.now()}
+        ''',
+      };
+
+      // You would make HTTP call here when you set up email service
+      // await http.post(Uri.parse(emailServiceUrl), body: emailPayload);
+      
+      print('📧 Email notification would be sent to: drivelesssavetime@gmail.com');
+      print('Feedback type: ${feedbackData['type']}');
+      print('From: ${feedbackData['name']} (${feedbackData['email']})');
+    } catch (e) {
+      print('❌ Failed to send email notification: $e');
+      // Don't fail the whole submission if email fails
     }
   }
 }
