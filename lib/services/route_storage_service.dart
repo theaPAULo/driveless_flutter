@@ -451,68 +451,100 @@ class RouteStorageService {
   // MARK: - Statistics and Analytics
 
   /// Get route statistics for user dashboard
-  static Future<Map<String, dynamic>> getRouteStatistics() async {
-    try {
-      final List<SavedRoute> routes = await getAllSavedRoutes();
-      
-      if (routes.isEmpty) {
-        return {
-          'totalRoutes': 0,
-          'favoriteRoutes': 0,
-          'totalTimeSaved': 0.0,
-          'totalDistanceSaved': 0.0,
-          'totalFuelSaved': 0.0,
-          'co2Saved': 0.0,
-        };
-      }
-      
-      // Calculate aggregated statistics
-      double totalTimeSaved = 0.0;
-      double totalDistanceSaved = 0.0;
-      int favoriteCount = 0;
-      
-      for (final route in routes) {
-        // Count favorites
-        if (route.isFavorite) {
-          favoriteCount++;
-        }
-        
-        // Sum time and distance saved (compared to unoptimized route)
-        // This would require original vs optimized comparison
-        // For now, we'll estimate based on route complexity
-        final stopCount = route.routeResult.optimizedStops.length;
-        if (stopCount > 2) {
-          // Estimate time saved for multi-stop routes (rough approximation)
-          totalTimeSaved += (stopCount - 2) * 15; // 15 minutes per additional stop
-        }
-      }
-      
-      // Calculate fuel and CO2 savings based on estimated distance saved
-      // These are rough estimates for demonstration
-      final double totalFuelSaved = totalDistanceSaved * 0.04; // 0.04 gallons per mile saved
-      final double co2Saved = totalFuelSaved * 19.6; // 19.6 lbs CO2 per gallon
-      
-      return {
-        'totalRoutes': routes.length,
-        'favoriteRoutes': favoriteCount,
-        'totalTimeSaved': totalTimeSaved,
-        'totalDistanceSaved': totalDistanceSaved,
-        'totalFuelSaved': totalFuelSaved,
-        'co2Saved': co2Saved,
-      };
-      
-    } catch (e) {
-      if (EnvironmentConfig.logApiCalls) {
-        print('❌ Error calculating route statistics: $e');
-      }
+static Future<Map<String, dynamic>> getRouteStatistics() async {
+  try {
+    final List<SavedRoute> routes = await getAllSavedRoutes();
+    
+    if (routes.isEmpty) {
       return {
         'totalRoutes': 0,
         'favoriteRoutes': 0,
-        'totalTimeSaved': 0.0,
+        'timeSavedMinutes': 0.0,
         'totalDistanceSaved': 0.0,
         'totalFuelSaved': 0.0,
         'co2Saved': 0.0,
+        'milesSaved': 0.0,
+        'fuelSaved': 0.0,
       };
     }
+    
+    // Calculate aggregated statistics
+    double totalDistance = 0.0;
+    double totalTimeSaved = 0.0;
+    int favoriteCount = 0;
+    
+    for (final route in routes) {
+      // Count favorites
+      if (route.isFavorite) {
+        favoriteCount++;
+      }
+      
+      // Extract numeric distance from string (e.g., "15.1 miles" -> 15.1)
+      final distanceString = route.routeResult.totalDistance;
+      final distanceMatch = RegExp(r'(\d+\.?\d*)').firstMatch(distanceString);
+      if (distanceMatch != null) {
+        final distance = double.tryParse(distanceMatch.group(1) ?? '0') ?? 0.0;
+        totalDistance += distance;
+        
+        if (EnvironmentConfig.logApiCalls) {
+          print('📊 Route ${route.name}: ${distance} miles');
+        }
+      }
+      
+      // Estimate time saved for multi-stop routes (rough approximation)
+      final stopCount = route.routeResult.optimizedStops.length;
+      if (stopCount > 2) {
+        totalTimeSaved += (stopCount - 2) * 15; // 15 minutes per additional stop
+      }
+    }
+    
+    // Calculate optimization savings (20% distance savings estimate)
+    const double optimizationSavingsPercent = 0.20;
+    final double milesSaved = totalDistance * optimizationSavingsPercent;
+    
+    // Calculate fuel savings (average car gets ~25 MPG)
+    const double averageMPG = 25.0;
+    final double fuelSaved = milesSaved / averageMPG;
+    
+    // Calculate CO2 savings (average car emits ~0.89 pounds of CO2 per mile)
+    const double co2PerMile = 0.89;
+    final double co2Saved = milesSaved * co2PerMile;
+    
+    if (EnvironmentConfig.logApiCalls) {
+      print('📊 Statistics calculated:');
+      print('   Total routes: ${routes.length}');
+      print('   Total distance: ${totalDistance.toStringAsFixed(1)} miles');
+      print('   Miles saved: ${milesSaved.toStringAsFixed(1)} miles');
+      print('   Time saved: ${totalTimeSaved.toStringAsFixed(0)} minutes');
+      print('   Fuel saved: ${fuelSaved.toStringAsFixed(1)} gallons');
+      print('   CO2 saved: ${co2Saved.toStringAsFixed(1)} lbs');
+    }
+    
+    return {
+      'totalRoutes': routes.length,
+      'favoriteRoutes': favoriteCount,
+      'timeSavedMinutes': totalTimeSaved,
+      'totalDistanceSaved': milesSaved, // This is the miles saved, not total distance
+      'totalFuelSaved': fuelSaved,
+      'co2Saved': co2Saved,
+      'milesSaved': milesSaved, // Keep both keys for compatibility
+      'fuelSaved': fuelSaved, // Keep both keys for compatibility
+    };
+    
+  } catch (e) {
+    if (EnvironmentConfig.logApiCalls) {
+      print('❌ Error calculating route statistics: $e');
+    }
+    return {
+      'totalRoutes': 0,
+      'favoriteRoutes': 0,
+      'timeSavedMinutes': 0.0,
+      'totalDistanceSaved': 0.0,
+      'totalFuelSaved': 0.0,
+      'co2Saved': 0.0,
+      'milesSaved': 0.0,
+      'fuelSaved': 0.0,
+    };
   }
+}
 }
