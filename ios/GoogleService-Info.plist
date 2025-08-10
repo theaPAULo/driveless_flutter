@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>149627945168-sut1n4m9dof0l6ao3n13396s3hlev6gs.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.149627945168-sut1n4m9dof0l6ao3n13396s3hlev6gs</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>149627945168-hmvjdfohqo33q8ol407pkjsceidu8ddl.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBc1O0KDuzgWCmO4it6cl4hC4edHe-6kEg</string>
+	<key>GCM_SENDER_ID</key>
+	<string>149627945168</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.PaulSoni.drivelessFlutter</string>
+	<key>PROJECT_ID</key>
+	<string>driveless-fluttter</string>
+	<key>STORAGE_BUCKET</key>
+	<string>driveless-fluttter.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:149627945168:ios:ab247375fb12784938ded5</string>
+</dict>
+</plist>
