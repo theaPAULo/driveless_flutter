@@ -1,111 +1,109 @@
 // lib/screens/welcome_screen.dart
 //
-// Welcome and authentication screen matching iOS app design
-// Shows when user is not signed in
+// Welcome screen with Google and Apple Sign-In options
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
 
-class WelcomeScreen extends StatefulWidget {
-  const WelcomeScreen({Key? key}) : super(key: key);
+class WelcomeScreen extends StatelessWidget {
+  const WelcomeScreen({super.key});
 
-  @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
-}
-
-class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            children: [
-              const Spacer(),
-              
-              // MARK: - App Logo/Icon
-              _buildAppIcon(),
-              
-              const SizedBox(height: 48),
-              
-              // MARK: - Welcome Text
-              _buildWelcomeText(),
-              
-              const SizedBox(height: 64),
-              
-              // MARK: - Features List
-              _buildFeaturesList(),
-              
-              const Spacer(),
-              
-              // MARK: - Sign In Button
-              _buildSignInButton(),
-              
-              const SizedBox(height: 24),
-              
-              // MARK: - Privacy Text
-              _buildPrivacyText(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF2E7D32), // Dark green
+              Color(0xFF1B5E20), // Darker green
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // MARK: - App Icon
-  Widget _buildAppIcon() {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2E7D32).withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 80),
+                
+                // App Logo and Title
+                _buildHeader(),
+                
+                const SizedBox(height: 60),
+                
+                // Feature showcase
+                _buildFeatures(),
+                
+                const Spacer(),
+                
+                // Sign-In Section
+                _buildSignInSection(context),
+                
+                const SizedBox(height: 24),
+                
+                // Privacy Text
+                _buildPrivacyText(),
+                
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
-        ],
-      ),
-      child: const Icon(
-        Icons.route,
-        color: Colors.white,
-        size: 60,
+        ),
       ),
     );
   }
 
-  // MARK: - Welcome Text
-  Widget _buildWelcomeText() {
+  /// Build app header
+  Widget _buildHeader() {
     return Column(
       children: [
-        const Text(
-          'Welcome to DriveLess',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
+        // App Icon
+        Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.15),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 3,
+            ),
           ),
-          textAlign: TextAlign.center,
+          child: const Icon(
+            Icons.route,
+            color: Colors.white,
+            size: 60,
+          ),
         ),
         
-        const SizedBox(height: 16),
+        const SizedBox(height: 32),
         
-        Text(
-          'Optimize your routes, save time and fuel with intelligent route planning.',
+        // App Name
+        const Text(
+          'DriveLess',
           style: TextStyle(
-            color: Colors.grey[400],
+            fontSize: 42,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 1.2,
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Tagline
+        const Text(
+          'Smart route optimization for\neffortless travel',
+          style: TextStyle(
             fontSize: 18,
-            height: 1.4,
+            color: Colors.white70,
+            height: 1.3,
           ),
           textAlign: TextAlign.center,
         ),
@@ -113,36 +111,32 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // MARK: - Features List
-  Widget _buildFeaturesList() {
+  /// Build features section
+  Widget _buildFeatures() {
     return Column(
       children: [
         _buildFeatureItem(
           icon: Icons.route,
-          title: 'Smart Route Optimization',
-          description: 'Find the best path through multiple stops',
+          title: 'Smart Routing',
+          description: 'AI-powered route optimization for multiple stops',
         ),
-        
         const SizedBox(height: 24),
-        
         _buildFeatureItem(
-          icon: Icons.cloud_sync,
-          title: 'Cloud Sync',
-          description: 'Access your saved routes and addresses anywhere',
+          icon: Icons.access_time,
+          title: 'Save Time',
+          description: 'Reduce travel time with real-time traffic analysis',
         ),
-        
         const SizedBox(height: 24),
-        
         _buildFeatureItem(
-          icon: Icons.analytics,
-          title: 'Track Your Savings',
-          description: 'See how much time and fuel you\'ve saved',
+          icon: Icons.eco,
+          title: 'Eco-Friendly',
+          description: 'Lower fuel consumption and carbon footprint',
         ),
       ],
     );
   }
 
-  // MARK: - Feature Item
+  /// Build individual feature item
   Widget _buildFeatureItem({
     required IconData icon,
     required String title,
@@ -150,24 +144,20 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }) {
     return Row(
       children: [
-        // Icon
         Container(
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: const Color(0xFF2E7D32).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            shape: BoxShape.circle,
+            color: Colors.white.withOpacity(0.2),
           ),
           child: Icon(
             icon,
-            color: const Color(0xFF2E7D32),
+            color: Colors.white,
             size: 24,
           ),
         ),
-        
         const SizedBox(width: 16),
-        
-        // Text
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,17 +165,18 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               Text(
                 title,
                 style: const TextStyle(
-                  color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 description,
-                style: TextStyle(
-                  color: Colors.grey[400],
+                style: const TextStyle(
                   fontSize: 14,
+                  color: Colors.white70,
+                  height: 1.3,
                 ),
               ),
             ],
@@ -195,100 +186,175 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     );
   }
 
-  // MARK: - Sign In Button
-  Widget _buildSignInButton() {
-    return Consumer<AuthService>(
-      builder: (context, authService, child) {
-        return Container(
-          width: double.infinity,
-          height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2E7D32).withOpacity(0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+  /// Build sign-in section
+  Widget _buildSignInSection(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Column(
+          children: [
+            // Welcome text
+            const Text(
+              'Get started with your account',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Apple Sign-In Button (iOS only)
+            if (Platform.isIOS) ...[
+              _buildAppleSignInButton(context, authProvider),
+              const SizedBox(height: 16),
             ],
-          ),
-          child: ElevatedButton(
-            onPressed: authService.isLoading ? null : _handleSignIn,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-            child: authService.isLoading
-                ? const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      SizedBox(width: 12),
-                      Text(
-                        'Signing In...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Google icon
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.g_mobiledata,
-                          color: Color(0xFF4285F4),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+            
+            // Google Sign-In Button
+            _buildGoogleSignInButton(context, authProvider),
+          ],
         );
       },
     );
   }
 
-  // MARK: - Privacy Text
+  /// Build Apple Sign-In button
+  Widget _buildAppleSignInButton(BuildContext context, AuthProvider authProvider) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: authProvider.isLoading ? null : () => _handleAppleSignIn(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 2,
+        ),
+        child: authProvider.isLoading
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Signing In...',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.apple,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Continue with Apple',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  /// Build Google Sign-In button
+  Widget _buildGoogleSignInButton(BuildContext context, AuthProvider authProvider) {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: authProvider.isLoading ? null : () => _handleGoogleSignIn(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF2E7D32),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 2,
+        ),
+        child: authProvider.isLoading
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    'Signing In...',
+                    style: TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Google icon
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.g_mobiledata,
+                      color: Color(0xFF4285F4),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  /// Build privacy text
   Widget _buildPrivacyText() {
     return Text(
       'By signing in, you agree to our Terms of Service and Privacy Policy. Your data is securely stored and never shared.',
       style: TextStyle(
-        color: Colors.grey[500],
+        color: Colors.grey[300],
         fontSize: 12,
         height: 1.4,
       ),
@@ -298,24 +364,32 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
 
   // MARK: - Actions
   
-  /// Handle Google Sign-In
-  Future<void> _handleSignIn() async {
-    final authService = context.read<AuthService>();
+  /// Handle Apple Sign-In
+  Future<void> _handleAppleSignIn(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
     
-    // Clear any previous errors
-    authService.clearError();
+    authProvider.clearError();
+    await authProvider.signInWithApple();
     
-    final success = await authService.signInWithGoogle();
-    
-    if (!success && mounted) {
-      // Show error if sign-in failed
-      _showErrorSnackBar(authService.errorMessage ?? 'Sign-in failed');
+    if (authProvider.errorMessage != null && context.mounted) {
+      _showErrorSnackBar(context, authProvider.errorMessage!);
     }
-    // Note: If successful, the auth state change will automatically navigate to the main app
+  }
+  
+  /// Handle Google Sign-In
+  Future<void> _handleGoogleSignIn(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    
+    authProvider.clearError();
+    await authProvider.signInWithGoogle();
+    
+    if (authProvider.errorMessage != null && context.mounted) {
+      _showErrorSnackBar(context, authProvider.errorMessage!);
+    }
   }
 
   /// Show error message to user
-  void _showErrorSnackBar(String message) {
+  void _showErrorSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(

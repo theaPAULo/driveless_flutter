@@ -29,11 +29,11 @@ dependencies:
   cloud_firestore: ^5.5.0      # Updated from old version
   google_sign_in: ^6.2.2       # Updated version
 
+  # ✅ NEW: Apple Sign-In Integration
+  sign_in_with_apple: ^5.0.0
+
   # State Management (preserved)
   provider: ^6.1.2
-
-  # ✅ No additional dependencies needed for usage tracking
-  # (uses existing Firebase and Provider packages)
 
 dev_dependencies:
   flutter_test:
@@ -42,8 +42,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # ✅ Optional: Add app icons and assets here if needed
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/

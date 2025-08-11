@@ -1,11 +1,13 @@
 // lib/providers/auth_provider.dart
 //
 // Authentication Provider using Provider pattern
-// Handles Firebase authentication state and Google Sign-In
+// Handles Firebase authentication state, Google Sign-In, and Apple Sign-In
 
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:io';
 
 import '../models/user_model.dart';
 
@@ -32,6 +34,9 @@ class AuthProvider extends ChangeNotifier {
   /// Getter for user name - this fixes the profile screen error
   String get name => _user?.displayName ?? _user?.email ?? 'User';
 
+  /// Check if Apple Sign-In is available (iOS only)
+  bool get isAppleSignInAvailable => Platform.isIOS;
+
   /// Constructor - sets up auth state listener
   AuthProvider() {
     // Listen for auth state changes
@@ -51,6 +56,12 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Set loading state
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
   /// Sign in with Google
   Future<void> signInWithGoogle() async {
     try {
@@ -59,30 +70,88 @@ class AuthProvider extends ChangeNotifier {
 
       // Trigger Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
-        // User cancelled the sign-in
+        // User canceled the sign-in
         _setLoading(false);
         return;
       }
 
-      // Get Google authentication credentials
+      // Obtain auth details
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Create Firebase credential
+      // Create a new credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with Google credentials
+      // Sign in to Firebase
       await _auth.signInWithCredential(credential);
       
       debugPrint('🌐 Google Sign-In successful');
       
     } catch (e) {
-      _errorMessage = 'Sign-in failed: ${e.toString()}';
+      _errorMessage = 'Google Sign-In failed: ${e.toString()}';
       debugPrint('❌ Google Sign-In error: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Sign in with Apple (iOS only)
+  Future<void> signInWithApple() async {
+    try {
+      _setLoading(true);
+      _errorMessage = null;
+
+      // Check if Apple Sign-In is available
+      if (!Platform.isIOS) {
+        throw Exception('Apple Sign-In is only available on iOS');
+      }
+
+      // Check Apple Sign-In availability
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception('Apple Sign-In is not available on this device');
+      }
+
+      // Request Apple Sign-In
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      // Create OAuth credential for Firebase
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
+      );
+
+      // Sign in to Firebase with Apple credential
+      final userCredential = await _auth.signInWithCredential(oauthCredential);
+      
+      // Update display name if available from Apple but not in Firebase
+      if (userCredential.user != null && 
+          (userCredential.user!.displayName == null || userCredential.user!.displayName!.isEmpty)) {
+        
+        // Construct display name from Apple Sign-In data
+        String? displayName;
+        if (appleCredential.givenName != null || appleCredential.familyName != null) {
+          displayName = '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'.trim();
+          if (displayName.isNotEmpty) {
+            await userCredential.user!.updateDisplayName(displayName);
+          }
+        }
+      }
+      
+      debugPrint('🍎 Apple Sign-In successful');
+      
+    } catch (e) {
+      _errorMessage = 'Apple Sign-In failed: ${e.toString()}';
+      debugPrint('❌ Apple Sign-In error: $e');
     } finally {
       _setLoading(false);
     }
@@ -92,49 +161,23 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signOut() async {
     try {
       _setLoading(true);
-      
-      // Sign out from Google
-      await _googleSignIn.signOut();
-      
-      // Sign out from Firebase
-      await _auth.signOut();
-      
-      debugPrint('🚪 User signed out');
+      _errorMessage = null;
+
+      // Sign out from all providers
+      await Future.wait([
+        _auth.signOut(),
+        _googleSignIn.signOut(),
+      ]);
+
+      debugPrint('👋 User signed out');
       
     } catch (e) {
-      _errorMessage = 'Sign-out failed: ${e.toString()}';
-      debugPrint('❌ Sign-out error: $e');
+      _errorMessage = 'Sign out failed: ${e.toString()}';
+      debugPrint('❌ Sign out error: $e');
     } finally {
       _setLoading(false);
     }
   }
-
-  /// Delete account
-  Future<void> deleteAccount() async {
-    try {
-      _setLoading(true);
-      
-      final user = _auth.currentUser;
-      if (user != null) {
-        await user.delete();
-        debugPrint('🗑️ Account deleted');
-      }
-      
-    } catch (e) {
-      _errorMessage = 'Account deletion failed: ${e.toString()}';
-      debugPrint('❌ Account deletion error: $e');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Set loading state
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-
 
   /// Clear error message
   void clearError() {
