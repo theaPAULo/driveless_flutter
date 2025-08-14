@@ -1,9 +1,9 @@
 // lib/screens/route_history_screen.dart
 //
-// Enhanced Route History Screen - Better Data Display & Theme Integration
+// Simple Route History Screen - Clean Route Display (NO REGEX)
 // ✅ PRESERVES: All existing functionality - search, stats, favorites, delete, clear all
-// ✅ ENHANCED: Better number formatting, Miles Saved metric, simplified route names
-// ✅ IMPROVED: Clean business names, real calculations, user-friendly display
+// ✅ ENHANCED: Better layout, smart naming, no truncation issues
+// ✅ SIMPLE: No regex patterns - just clean string operations
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -79,98 +79,167 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     }).toList();
   }
 
-  /// NEW: Format numbers with commas for better readability
+  /// Format numbers with commas for better readability
   String _formatNumber(double number) {
     final formatter = NumberFormat('#,##0');
     return formatter.format(number.round());
   }
 
-  /// NEW: Calculate total miles saved across all routes (20% optimization)
+  /// Calculate total miles saved across all routes (20% optimization)
   double _calculateTotalMilesSaved() {
     double totalMiles = 0.0;
     for (final route in _savedRoutes) {
-      final distanceString = route.routeResult.totalDistance;
-      final distanceMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(distanceString);
-      if (distanceMatch != null) {
-        final distance = double.tryParse(distanceMatch.group(1) ?? '0') ?? 0.0;
-        totalMiles += distance;
-      }
+      final distance = _extractDistanceFromString(route.routeResult.totalDistance);
+      totalMiles += distance;
     }
-    // Use same 20% optimization savings as iOS app
-    return totalMiles * 0.20;
+    return totalMiles * 0.20; // 20% savings
   }
 
-  /// NEW: Calculate total optimized miles (actual route distances)
+  /// Calculate total optimized miles (actual route distances)
   double _calculateTotalOptimizedMiles() {
     double totalMiles = 0.0;
     for (final route in _savedRoutes) {
-      final distanceString = route.routeResult.totalDistance;
-      final distanceMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(distanceString);
-      if (distanceMatch != null) {
-        final distance = double.tryParse(distanceMatch.group(1) ?? '0') ?? 0.0;
-        totalMiles += distance;
-      }
+      final distance = _extractDistanceFromString(route.routeResult.totalDistance);
+      totalMiles += distance;
     }
     return totalMiles;
   }
 
-  /// NEW: Clean route display name - show business names only
-  String _getCleanRouteName(SavedRoute route) {
-    final stops = route.routeResult.optimizedStops;
-    if (stops.isEmpty) return route.name;
+  /// Extract distance number from string like "28.9 mi" - SIMPLE VERSION
+  double _extractDistanceFromString(String distanceString) {
+    String numericPart = '';
+    bool foundDecimal = false;
     
-    List<String> cleanNames = [];
-    
-    for (final stop in stops) {
-      String cleanName = stop.displayName;
-      
-      // Remove business suffixes
-      cleanName = cleanName.replaceAll(RegExp(r'\s+(Inc|LLC|Corp|Corporation|Co|Company|Ltd|Limited)\.?$', caseSensitive: false), '');
-      
-      // Remove city, state, zip info (anything after comma)
-      if (cleanName.contains(',')) {
-        cleanName = cleanName.split(',')[0];
+    for (int i = 0; i < distanceString.length; i++) {
+      String char = distanceString[i];
+      if ('0123456789'.contains(char)) {
+        numericPart += char;
+      } else if (char == '.' && !foundDecimal) {
+        numericPart += char;
+        foundDecimal = true;
+      } else if (numericPart.isNotEmpty) {
+        break; // Stop when we hit non-numeric after finding numbers
       }
-      
-      // Truncate if too long
-      if (cleanName.length > 15) {
-        cleanName = '${cleanName.substring(0, 12)}...';
-      }
-      
-      cleanNames.add(cleanName.trim());
     }
     
-    // Join with arrows, limit total length
-    String result = cleanNames.join(' → ');
-    if (result.length > 40) {
-      result = '${result.substring(0, 37)}...';
-    }
-    
-    return result.isEmpty ? route.name : result;
+    return double.tryParse(numericPart) ?? 0.0;
   }
 
-  /// NEW: Get individual route miles saved (20% of route distance)
-  String _getRouteMilesSaved(SavedRoute route) {
-    final distanceString = route.routeResult.totalDistance;
-    final distanceMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(distanceString);
-    if (distanceMatch != null) {
-      final distance = double.tryParse(distanceMatch.group(1) ?? '0') ?? 0.0;
-      final milesSaved = distance * 0.20; // 20% optimization savings
-      return '${milesSaved.toStringAsFixed(1)} mi saved';
+  /// Get vertical stop list for route display
+  List<String> _getRouteStopsList(SavedRoute route) {
+    final stops = route.routeResult.optimizedStops;
+    if (stops.isEmpty) return ['No stops'];
+    
+    List<String> stopsList = [];
+    
+    // For routes with 1-3 stops, show all
+    if (stops.length <= 3) {
+      for (int i = 0; i < stops.length; i++) {
+        String cleanName = _getCleanLocationName(stops[i].displayName);
+        if (i == 0) {
+          stopsList.add('$cleanName (start)');
+        } else if (i == stops.length - 1) {
+          stopsList.add('$cleanName (end)');
+        } else {
+          stopsList.add(cleanName);
+        }
+      }
+    } else {
+      // For routes with 4+ stops, show start + middle + end
+      stopsList.add('${_getCleanLocationName(stops[0].displayName)} (start)');
+      
+      // Show one middle stop
+      if (stops.length > 2) {
+        stopsList.add(_getCleanLocationName(stops[1].displayName));
+      }
+      
+      // Show "and X more" if there are many stops
+      if (stops.length > 3) {
+        stopsList.add('... and ${stops.length - 3} more stops');
+      }
+      
+      stopsList.add('${_getCleanLocationName(stops.last.displayName)} (end)');
     }
-    return '0.0 mi saved';
+    
+    return stopsList;
+  }
+
+  /// Get route type description - START TO END FORMAT
+  String _getRouteTypeDescription(SavedRoute route) {
+    final stops = route.routeResult.optimizedStops;
+    
+    if (stops.isEmpty) return 'Empty Route';
+    if (stops.length == 1) return _getCleanLocationName(stops.first.displayName);
+    
+    String startLocation = _getCleanLocationName(stops.first.displayName);
+    String endLocation = _getCleanLocationName(stops.last.displayName);
+    int stopCount = stops.length;
+    
+    // Check if it's a round trip (same start/end location)
+    if (stopCount > 2 && startLocation.toLowerCase() == endLocation.toLowerCase()) {
+      return '$startLocation Round Trip ($stopCount stops)';
+    }
+    
+    // Regular start to end format
+    return '$startLocation to $endLocation ($stopCount stops)';
+  }
+
+  /// Get clean location name - SIMPLE VERSION (NO REGEX)
+  String _getCleanLocationName(String originalName) {
+    String name = originalName;
+    
+    // Check for common businesses first
+    String lowerName = name.toLowerCase();
+    
+    if (lowerName.contains('starbucks')) return 'Starbucks';
+    if (lowerName.contains('target')) return 'Target';
+    if (lowerName.contains('walmart')) return 'Walmart';
+    if (lowerName.contains('home depot')) return 'Home Depot';
+    if (lowerName.contains('cvs')) return 'CVS';
+    if (lowerName.contains('walgreens')) return 'Walgreens';
+    if (lowerName.contains('ups')) return 'UPS';
+    if (lowerName.contains('fedex')) return 'FedEx';
+    if (lowerName.contains('chipotle')) return 'Chipotle';
+    if (lowerName.contains('mcdonalds')) return 'McDonald\'s';
+    if (lowerName.contains('costco')) return 'Costco';
+    if (lowerName.contains('lowes')) return 'Lowe\'s';
+    
+    // Remove everything after first comma (city, state, etc.)
+    if (name.contains(',')) {
+      name = name.split(',')[0];
+    }
+    
+    // Remove common business suffixes
+    final suffixes = [' Inc.', ' Inc', ' LLC', ' Corp.', ' Corp', ' Corporation', ' Co.', ' Co', ' Company', ' Ltd.', ' Ltd', ' Limited'];
+    for (final suffix in suffixes) {
+      if (name.endsWith(suffix)) {
+        name = name.substring(0, name.length - suffix.length);
+        break;
+      }
+    }
+    
+    // Truncate if too long
+    if (name.length > 12) {
+      name = '${name.substring(0, 10)}...';
+    }
+    
+    return name.trim().isEmpty ? 'Location' : name.trim();
+  }
+
+  /// Get individual route miles saved
+  String _getRouteMilesSaved(SavedRoute route) {
+    final distance = _extractDistanceFromString(route.routeResult.totalDistance);
+    final milesSaved = distance * 0.20; // 20% optimization savings
+    return '${milesSaved.toStringAsFixed(1)} mi saved';
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get theme provider for colors only  
     final themeProvider = Provider.of<ThemeProvider>(context);
     
     return Scaffold(
-      // Theme-aware background
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        // Theme-aware app bar
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
@@ -208,15 +277,13 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     );
   }
 
-  // MARK: - Loading State - PRESERVED LOGIC, UPDATED COLORS
+  // MARK: - Loading State
   Widget _buildLoadingState(ThemeProvider themeProvider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(
-            color: Color(0xFF34C759),
-          ),
+          const CircularProgressIndicator(color: Color(0xFF34C759)),
           const SizedBox(height: 16),
           Text(
             'Loading route history...',
@@ -232,7 +299,7 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     );
   }
 
-  // MARK: - Main Content - PRESERVED STRUCTURE
+  // MARK: - Main Content
   Widget _buildContent(ThemeProvider themeProvider) {
     if (_savedRoutes.isEmpty) {
       return _buildEmptyState(themeProvider);
@@ -241,15 +308,13 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     return Column(
       children: [
         if (_savedRoutes.length > 3) _buildSearchBar(themeProvider),
-        _buildEnhancedStatsHeader(themeProvider), // ENHANCED
-        Expanded(
-          child: _buildRouteList(themeProvider),
-        ),
+        _buildStatsHeader(themeProvider),
+        Expanded(child: _buildRouteList(themeProvider)),
       ],
     );
   }
 
-  // MARK: - Empty State - PRESERVED LOGIC, UPDATED COLORS
+  // MARK: - Empty State
   Widget _buildEmptyState(ThemeProvider themeProvider) {
     return Center(
       child: Padding(
@@ -264,15 +329,9 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
                 color: const Color(0xFF34C759).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(50),
               ),
-              child: const Icon(
-                Icons.history,
-                color: Color(0xFF34C759),
-                size: 50,
-              ),
+              child: const Icon(Icons.history, color: Color(0xFF34C759), size: 50),
             ),
-            
             const SizedBox(height: 24),
-            
             Text(
               'No Route History',
               style: TextStyle(
@@ -281,9 +340,7 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            
             const SizedBox(height: 12),
-            
             Text(
               'Start planning routes to see your history here. Saved routes will appear automatically for quick access.',
               textAlign: TextAlign.center,
@@ -301,16 +358,12 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     );
   }
 
-  // MARK: - Search Bar - PRESERVED LOGIC, UPDATED COLORS
+  // MARK: - Search Bar
   Widget _buildSearchBar(ThemeProvider themeProvider) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: TextField(
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-          });
-        },
+        onChanged: (value) => setState(() => _searchQuery = value),
         decoration: InputDecoration(
           hintText: 'Search routes...',
           hintStyle: TextStyle(
@@ -331,15 +384,13 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
             borderSide: BorderSide.none,
           ),
         ),
-        style: TextStyle(
-          color: Theme.of(context).textTheme.bodyLarge?.color,
-        ),
+        style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color),
       ),
     );
   }
 
-  // MARK: - ENHANCED Stats Header - NEW IMPROVED VERSION
-  Widget _buildEnhancedStatsHeader(ThemeProvider themeProvider) {
+  // MARK: - Stats Header
+  Widget _buildStatsHeader(ThemeProvider themeProvider) {
     final totalRoutes = _savedRoutes.length;
     final totalOptimizedMiles = _calculateTotalOptimizedMiles();
     final totalMilesSaved = _calculateTotalMilesSaved();
@@ -353,17 +404,12 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
       ),
       child: Row(
         children: [
-          // Total Routes
           Expanded(
             child: Column(
               children: [
                 Text(
                   _formatNumber(totalRoutes.toDouble()),
-                  style: const TextStyle(
-                    color: Color(0xFF34C759),
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Color(0xFF34C759), fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -380,18 +426,12 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
               ],
             ),
           ),
-          
-          // Miles Optimized
           Expanded(
             child: Column(
               children: [
                 Text(
                   _formatNumber(totalOptimizedMiles),
-                  style: const TextStyle(
-                    color: Color(0xFF34C759),
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Color(0xFF34C759), fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -408,18 +448,12 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
               ],
             ),
           ),
-          
-          // Miles Saved (NEW!)
           Expanded(
             child: Column(
               children: [
                 Text(
                   _formatNumber(totalMilesSaved),
-                  style: const TextStyle(
-                    color: Color(0xFF34C759),
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(color: Color(0xFF34C759), fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -441,7 +475,7 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     );
   }
 
-  // MARK: - Route List - PRESERVED LOGIC, UPDATED COLORS
+  // MARK: - Route List
   Widget _buildRouteList(ThemeProvider themeProvider) {
     final routes = filteredRoutes;
     
@@ -450,13 +484,16 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
       itemCount: routes.length,
       itemBuilder: (context, index) {
         final route = routes[index];
-        return _buildEnhancedRouteItem(route, themeProvider); // ENHANCED
+        return _buildRouteItem(route, themeProvider);
       },
     );
   }
 
-  // MARK: - ENHANCED Route Item - IMPROVED VERSION
-  Widget _buildEnhancedRouteItem(SavedRoute route, ThemeProvider themeProvider) {
+  // MARK: - Route Item with Vertical Stop List
+  Widget _buildRouteItem(SavedRoute route, ThemeProvider themeProvider) {
+    final stopsList = _getRouteStopsList(route);
+    final routeType = _getRouteTypeDescription(route);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Material(
@@ -466,116 +503,146 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
           onTap: () => _loadRoute(route),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF34C759).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: const Icon(
-                    Icons.map,
-                    color: Color(0xFF34C759),
-                    size: 24,
+                // Route type and favorite button
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF34C759).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.map, color: Color(0xFF34C759), size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        routeType,
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => _toggleFavorite(route),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          route.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: route.isFavorite ? Colors.red : 
+                            (themeProvider.currentTheme == AppThemeMode.dark 
+                              ? Colors.grey[400] 
+                              : Colors.grey[600]),
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Vertical stops list
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: stopsList.map((stop) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '• ',
+                            style: TextStyle(
+                              color: const Color(0xFF34C759),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              stop,
+                              style: TextStyle(
+                                color: themeProvider.currentTheme == AppThemeMode.dark 
+                                  ? Colors.grey[300] 
+                                  : Colors.grey[700],
+                                fontSize: 14,
+                                height: 1.2,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )).toList(),
                   ),
                 ),
                 
-                const SizedBox(width: 16),
+                const SizedBox(height: 12),
                 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _getCleanRouteName(route), // ENHANCED: Clean business names
-                              style: TextStyle(
-                                color: Theme.of(context).textTheme.bodyLarge?.color,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          
-                          IconButton(
-                            onPressed: () => _toggleFavorite(route),
-                            icon: Icon(
-                              route.isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: route.isFavorite ? Colors.red : 
-                                (themeProvider.currentTheme == AppThemeMode.dark 
-                                  ? Colors.grey[400] 
-                                  : Colors.grey[600]),
-                              size: 20,
-                            ),
-                          ),
-                        ],
+                // Route details in a compact row
+                Row(
+                  children: [
+                    // Distance badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF34C759).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF34C759).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              route.routeResult.totalDistance,
-                              style: const TextStyle(
-                                color: Color(0xFF34C759),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          
-                          const SizedBox(width: 12),
-                          
-                          Text(
-                            route.routeResult.estimatedTime,
-                            style: TextStyle(
-                              color: themeProvider.currentTheme == AppThemeMode.dark 
-                                ? Colors.grey[400] 
-                                : Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 12),
-                      
-                      Text(
-                        route.formattedDate,
-                        style: TextStyle(
-                          color: themeProvider.currentTheme == AppThemeMode.dark 
-                            ? Colors.grey[500] 
-                            : Colors.grey[400],
-                          fontSize: 12,
+                      child: Text(
+                        route.routeResult.totalDistance,
+                        style: const TextStyle(
+                          color: Color(0xFF34C759),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      
-                      const SizedBox(height: 8),
-                      
-                      // ENHANCED: Show miles saved instead of route preview
-                      Text(
-                        _getRouteMilesSaved(route),
-                        style: TextStyle(
-                          color: const Color(0xFF34C759),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    ),
+                    
+                    const SizedBox(width: 8),
+                    
+                    // Time
+                    Text(
+                      route.routeResult.estimatedTime,
+                      style: TextStyle(
+                        color: themeProvider.currentTheme == AppThemeMode.dark 
+                          ? Colors.grey[400] 
+                          : Colors.grey[600],
+                        fontSize: 13,
                       ),
-                    ],
+                    ),
+                    
+                    const Spacer(),
+                    
+                    // Miles saved
+                    Text(
+                      _getRouteMilesSaved(route),
+                      style: const TextStyle(
+                        color: Color(0xFF34C759),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Date at the bottom
+                Text(
+                  route.formattedDate,
+                  style: TextStyle(
+                    color: themeProvider.currentTheme == AppThemeMode.dark 
+                      ? Colors.grey[500] 
+                      : Colors.grey[400],
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -586,12 +653,10 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     );
   }
 
-  // MARK: - Actions - PRESERVED ALL EXISTING FUNCTIONALITY
+  // MARK: - PRESERVED Actions - ALL EXISTING FUNCTIONALITY
 
-  /// PRESERVED: Load a route into the route input screen
   Future<void> _loadRoute(SavedRoute route) async {
     try {
-      // Navigate to route results screen with the saved route data
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -609,17 +674,12 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     }
   }
 
-  /// PRESERVED: Toggle favorite status of a route
   Future<void> _toggleFavorite(SavedRoute route) async {
     try {
-      // Create updated route with toggled favorite status
       final updatedRoute = route.copyWith(isFavorite: !route.isFavorite);
-      
-      // Update using the existing updateRoute method
       final success = await RouteStorageService.updateRoute(updatedRoute);
       
       if (success && mounted) {
-        // Update local state
         setState(() {
           final index = _savedRoutes.indexWhere((r) => r.id == route.id);
           if (index != -1) {
@@ -627,7 +687,6 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
           }
         });
         
-        // Show feedback to user
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -651,7 +710,6 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     }
   }
 
-  /// PRESERVED: Show confirmation dialog for clearing all routes
   Future<void> _showClearAllConfirmation() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -677,11 +735,10 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
     }
   }
 
-  /// PRESERVED: Clear all saved routes
   Future<void> _clearAllRoutes() async {
     try {
       await RouteStorageService.clearAllRoutes();
-      await _loadSavedRoutes(); // Reload to update UI
+      await _loadSavedRoutes();
       
       if (EnvironmentConfig.logApiCalls) {
         print('✅ All routes cleared');
