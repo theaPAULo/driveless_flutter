@@ -9,31 +9,31 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # Existing core dependencies (preserved)
   flutter_typeahead: ^5.2.0
   http: ^1.2.0
   geolocator: ^10.1.0
   permission_handler: ^11.1.0
   shared_preferences: ^2.2.2
-  intl: ^0.18.1
-  
+  intl: ^0.18.1  # Add back the intl package we were using
+
   # Google Maps & URL Launcher (preserved)
   google_maps_flutter: ^2.5.0
   url_launcher: ^6.2.2
   package_info_plus: ^4.2.0
   
   # Firebase & Authentication - YOUR EXACT WORKING VERSIONS
-  firebase_core: ^3.8.0        
-  firebase_auth: ^5.3.3        
-  cloud_firestore: ^5.5.0      
-  google_sign_in: ^6.2.2       
+  firebase_core: ^3.8.0        # Your working version
+  firebase_auth: ^5.3.3        # Your working version
+  cloud_firestore: ^5.5.0      # Your working version
+  google_sign_in: ^6.2.2       # Your working version
+
+  # ✅ Apple Sign-In Integration - CURRENT WORKING VERSION
+  sign_in_with_apple: ^5.0.0   # Your working version
   
   # State Management (preserved)
   provider: ^6.1.2
-  
-  # 🍎 Apple Sign In - TEMPORARILY REMOVED FOR ANDROID COMPATIBILITY
-  # Will add back using iOS-specific method once Android builds work
 
 dev_dependencies:
   flutter_test:
