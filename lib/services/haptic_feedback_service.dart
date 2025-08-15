@@ -88,13 +88,12 @@ class HapticFeedbackService extends ChangeNotifier {
 
   // MARK: - Private Methods
 
-  /// Perform the actual haptic feedback
+/// Perform the actual haptic feedback
   Future<void> _performHaptic(HapticType type) async {
     try {
       switch (type) {
         case HapticType.light:
         case HapticType.buttonTap:
-        case HapticType.toggle:
           await HapticFeedback.lightImpact();
           break;
 
