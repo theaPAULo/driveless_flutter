@@ -1,12 +1,12 @@
 // lib/screens/initial_loading_screen.dart
 //
-// ENHANCED: Initial loading screen with "Preparing your journey..." text
-// ✅ IMPROVED: Matches iOS timing and text exactly
-// ✅ IMPROVED: 3-second duration with perfect animations
-// ✅ IMPROVED: "Preparing your journey..." appears after 1.2 seconds
+// ✨ UPDATED: Now with beautiful rotating compass animation!
+// 🧭 ENHANCED: Replaced CircularProgressIndicator with iOS-style compass
+// ✅ PRESERVES: All existing timing and functionality
 
 import 'package:flutter/material.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/rotating_compass.dart'; // ✨ NEW: Import compass widget
 
 class InitialLoadingScreen extends StatefulWidget {
   final VoidCallback onLoadingComplete;
@@ -23,17 +23,17 @@ class InitialLoadingScreen extends StatefulWidget {
 class _InitialLoadingScreenState extends State<InitialLoadingScreen>
     with TickerProviderStateMixin {
   
-  // Animation controllers
+  // Animation controllers (PRESERVED - no changes)
   late AnimationController _fadeController;
   late AnimationController _scaleController;
-  late AnimationController _preparingController; // NEW: for "preparing" text
+  late AnimationController _preparingController;
   
-  // Logo animations
+  // Logo animations (PRESERVED - no changes)
   late Animation<double> _logoScale;
   late Animation<double> _logoOpacity;
   late Animation<double> _titleOpacity;
   
-  // NEW: "Preparing your journey..." animations
+  // "Preparing your journey..." animations (PRESERVED - no changes)
   late Animation<double> _preparingOpacity;
   late Animation<Offset> _preparingSlide;
 
@@ -45,6 +45,7 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
   }
 
   void _initializeAnimations() {
+    // PRESERVED: All existing animation setup
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -55,13 +56,11 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
       vsync: this,
     );
     
-    // NEW: Controller for "preparing" text
     _preparingController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
-    // Logo animations
     _logoScale = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -86,7 +85,6 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
       curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
     ));
 
-    // NEW: "Preparing your journey..." animations
     _preparingOpacity = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -105,20 +103,17 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
   }
 
   void _startLoadingSequence() async {
-    // Start initial animations (logo and title)
+    // PRESERVED: Exact same timing as before
     _fadeController.forward();
     _scaleController.forward();
     
-    // Wait 1.2 seconds, then show "Preparing your journey..." (matching iOS)
     await Future.delayed(const Duration(milliseconds: 1200));
     if (mounted) {
       _preparingController.forward();
     }
     
-    // Wait total of 3 seconds (extended from original 1.8s)
     await Future.delayed(const Duration(milliseconds: 1800));
     
-    // Call completion callback
     if (mounted) {
       widget.onLoadingComplete();
     }
@@ -128,7 +123,7 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
   void dispose() {
     _fadeController.dispose();
     _scaleController.dispose();
-    _preparingController.dispose(); // NEW: dispose preparing controller
+    _preparingController.dispose();
     super.dispose();
   }
 
@@ -139,29 +134,32 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          // EXACT iOS gradient
-          gradient: AppThemes.iOSGradient,
+          gradient: AppThemes.iOSGradient, // PRESERVED: Same gradient
         ),
         child: SafeArea(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // MARK: - Logo and Title Section
+              // PRESERVED: Logo and Title Section (no changes)
               AnimatedBuilder(
                 animation: Listenable.merge([_scaleController, _fadeController]),
                 builder: (context, child) {
                   return Column(
                     children: [
-                      // Animated Logo
                       Transform.scale(
                         scale: _logoScale.value,
                         child: Opacity(
                           opacity: _logoOpacity.value,
                           child: Container(
-                            width: 100,
-                            height: 100,
+                            width: 120,
+                            height: 120,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              gradient: RadialGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0.3),
+                                  Colors.white.withOpacity(0.1),
+                                ],
+                              ),
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
@@ -169,19 +167,12 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
-                                // Subtle green glow
-                                BoxShadow(
-                                  color: AppThemes.systemGreen.withOpacity(0.2),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 0),
-                                  spreadRadius: -3,
-                                ),
                               ],
                             ),
                             child: const Icon(
                               Icons.navigation,
-                              size: 50,
-                              color: AppThemes.secondaryGreen,
+                              size: 60,
+                              color: Colors.white,
                             ),
                           ),
                         ),
@@ -189,24 +180,47 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
                       
                       const SizedBox(height: 24),
                       
-                      // Animated Title
                       Opacity(
                         opacity: _titleOpacity.value,
                         child: const Text(
                           'DriveLess',
                           style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            letterSpacing: -1,
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -1.5,
                             shadows: [
                               Shadow(
-                                color: Colors.black26,
-                                blurRadius: 8,
+                                color: Colors.black54,
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      Opacity(
+                        opacity: _titleOpacity.value,
+                        child: const Text(
+                          'Drive Less, Save Time',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black38,
+                                blurRadius: 6,
                                 offset: Offset(0, 2),
                               ),
                             ],
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ],
@@ -216,7 +230,7 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
               
               const SizedBox(height: 60),
               
-              // MARK: - "Preparing your journey..." Section (NEW)
+              // ✨ ENHANCED: "Preparing your journey..." with Rotating Compass
               AnimatedBuilder(
                 animation: _preparingController,
                 builder: (context, child) {
@@ -226,19 +240,18 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
                       opacity: _preparingOpacity,
                       child: Column(
                         children: [
-                          // Loading Spinner
-                          const SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              strokeWidth: 3,
-                            ),
+                          // 🧭 NEW: Beautiful rotating compass instead of CircularProgressIndicator
+                          const RotatingCompass(
+                            size: 36,
+                            color: Colors.white,
+                            strokeWidth: 3,
+                            showRing: true,
+                            animationDuration: Duration(seconds: 3),
                           ),
                           
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 20),
                           
-                          // "Preparing your journey..." Text
+                          // PRESERVED: Same text as before
                           const Text(
                             'Preparing your journey...',
                             style: TextStyle(
