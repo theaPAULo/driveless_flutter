@@ -638,7 +638,12 @@ Widget _buildSavedAddressButton(
   );
 }
 
-// ✅ NEW: Helper method for custom address buttons
+// lib/screens/route_input_screen.dart - UPDATED METHOD
+//
+// UPDATED: Custom address button to show only the purple icon (no text)
+// Replace the existing _buildCustomAddressButton method with this version
+
+// ✅ UPDATED: Helper method for custom address buttons (icon only)
 Widget _buildCustomAddressButton(
   SavedAddress customAddress,
   TextEditingController controller,
@@ -652,35 +657,20 @@ Widget _buildCustomAddressButton(
       onAddressSelected(customAddress.fullAddress);
     },
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      width: 36,
+      height: 36,
       decoration: BoxDecoration(
         color: const Color(0xFF7B1FA2).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(18),
+        shape: BoxShape.circle,
         border: Border.all(
           color: const Color(0xFF7B1FA2).withOpacity(0.3),
           width: 1,
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.place,
-            color: Color(0xFF7B1FA2),
-            size: 16,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            customAddress.label.length > 8 
-                ? '${customAddress.label.substring(0, 8)}...'
-                : customAddress.label,
-            style: const TextStyle(
-              color: Color(0xFF7B1FA2),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+      child: const Icon(
+        Icons.place,
+        color: Color(0xFF7B1FA2),
+        size: 18,
       ),
     ),
   );
