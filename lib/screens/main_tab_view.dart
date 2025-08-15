@@ -1,7 +1,8 @@
 // lib/screens/main_tab_view.dart
 //
-// FIXED: Main tab navigation with THEME-AWARE bottom navigation bar
-// Now properly switches between light and dark themes
+// FIXED: Main tab navigation with NO OVERFLOW issues
+// ✅ IMPROVED: Proper SafeArea handling for bottom navigation
+// ✅ IMPROVED: Responsive height that adapts to device
 
 import 'package:flutter/material.dart';
 
@@ -26,12 +27,8 @@ class _MainTabViewState extends State<MainTabView> {
 
   @override
   Widget build(BuildContext context) {
-    // 🎨 THEME-AWARE: Use Theme.of(context) for proper theme switching
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
-    
     return Scaffold(
-      backgroundColor: backgroundColor, // 🎨 THEME-AWARE
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
@@ -40,99 +37,38 @@ class _MainTabViewState extends State<MainTabView> {
     );
   }
 
-  // MARK: - Bottom Navigation Bar - NOW THEME-AWARE
+  // MARK: - Flutter Built-in BottomNavigationBar (handles safe areas automatically)
   Widget _buildBottomNavigationBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        // 🎨 FIXED: Theme-aware colors
-        color: isDark 
-            ? const Color(0xFF1C1C1E) // Dark theme
-            : Colors.white, // Light theme
-        border: Border(
-          top: BorderSide(
-            // 🎨 FIXED: Theme-aware border color
-            color: isDark 
-                ? const Color(0xFF38383A) // Dark theme border
-                : const Color(0xFFD1D1D6), // Light theme border
-            width: 0.5,
-          ),
+    return BottomNavigationBar(
+      currentIndex: _selectedIndex,
+      onTap: _onTabTapped,
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+      selectedItemColor: const Color(0xFF34C759),
+      unselectedItemColor: isDark ? Colors.grey[400] : Colors.grey[600],
+      selectedFontSize: 12,
+      unselectedFontSize: 12,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.map_outlined),
+          activeIcon: Icon(Icons.map),
+          label: 'Search',
         ),
-      ),
-      child: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // Search Tab
-            _buildTabItem(
-              index: 0,
-              icon: Icons.map,
-              label: 'Search',
-              isSelected: _selectedIndex == 0,
-            ),
-            
-            // Profile Tab  
-            _buildTabItem(
-              index: 1,
-              icon: Icons.person_outline,
-              label: 'Profile',
-              isSelected: _selectedIndex == 1,
-            ),
-          ],
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_outline),
+          activeIcon: Icon(Icons.person),
+          label: 'Profile',
         ),
-      ),
+      ],
     );
   }
 
-  // MARK: - Tab Item - NOW THEME-AWARE
-  Widget _buildTabItem({
-    required int index,
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              // 🎨 FIXED: Theme-aware icon colors
-              color: isSelected 
-                  ? const Color(0xFF34C759) // Always green when selected (both themes)
-                  : (isDark 
-                      ? Colors.grey[600] // Dark theme inactive
-                      : Colors.grey[500]), // Light theme inactive
-              size: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                // 🎨 FIXED: Theme-aware text colors
-                color: isSelected 
-                    ? const Color(0xFF34C759) // Always green when selected (both themes)
-                    : (isDark 
-                        ? Colors.grey[600] // Dark theme inactive
-                        : Colors.grey[500]), // Light theme inactive
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  // MARK: - Tab Selection Handler
+  void _onTabTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 }
