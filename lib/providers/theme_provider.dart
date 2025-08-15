@@ -1,7 +1,9 @@
 // lib/providers/theme_provider.dart
 //
-// Theme management provider for DriveLess Flutter app
-// Handles theme switching, persistence, and matches iOS app design exactly
+// UPDATED: Theme management provider with EXACT iOS gradient colors
+// ✅ IMPROVED: Perfect color matching from iOS app
+// ✅ IMPROVED: Added gradient utility methods for easy reuse
+// ✅ IMPROVED: Enhanced color constants for consistency
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -86,12 +88,57 @@ class ThemeProvider extends ChangeNotifier {
 
 /// Theme definitions that exactly match the iOS DriveLess app
 class AppThemes {
-  // iOS DriveLess brand colors
-  static const Color primaryGreen = Color(0xFF34C759); // iOS system green
-  static const Color secondaryGreen = Color(0xFF2E7D32);
-  static const Color trafficOrange = Color(0xFFFF9500); // iOS system orange
-  static const Color errorRed = Color(0xFFFF3B30); // iOS system red
+  // EXACT iOS DriveLess gradient colors (converted from SwiftUI RGB values)
+  static const Color deepForestGreen = Color.fromRGBO(33, 69, 33, 1.0);   // iOS: 0.13, 0.27, 0.13
+  static const Color primaryGreen = Color.fromRGBO(51, 102, 51, 1.0);     // iOS: 0.2, 0.4, 0.2
+  static const Color oliveGreen = Color.fromRGBO(128, 153, 102, 1.0);     // iOS: 0.5, 0.6, 0.4
+  static const Color richBrown = Color.fromRGBO(102, 77, 51, 1.0);        // iOS: 0.4, 0.3, 0.2
   
+  // Additional brand colors for UI elements
+  static const Color systemGreen = Color(0xFF34C759);      // iOS system green for buttons
+  static const Color secondaryGreen = Color(0xFF2E7D32);   // Secondary actions
+  static const Color trafficOrange = Color(0xFFFF9500);    // iOS system orange
+  static const Color errorRed = Color(0xFFFF3B30);         // iOS system red
+  
+  /// EXACT iOS gradient for splash/welcome screens
+  static const LinearGradient iOSGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      deepForestGreen,    // Deep forest green
+      primaryGreen,       // Primary green  
+      oliveGreen,         // Olive green
+      richBrown,          // Rich brown
+    ],
+    stops: [0.0, 0.33, 0.66, 1.0],
+  );
+  
+  /// Alternative gradient for different screens (to add visual variety)
+  static const LinearGradient splashGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      deepForestGreen,
+      primaryGreen,
+      oliveGreen,
+      richBrown,
+    ],
+    stops: [0.0, 0.3, 0.7, 1.0],
+  );
+  
+  /// Light gradient for light theme
+  static const LinearGradient lightGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF66BB6A),  // Light green
+      Color(0xFF81C784),  // Lighter green
+      Color(0xFFA5D6A7),  // Very light green
+      Color(0xFFD7CCC8),  // Light brown
+    ],
+    stops: [0.0, 0.33, 0.66, 1.0],
+  );
+
   /// Light theme matching iOS app
   static ThemeData get lightTheme {
     return ThemeData(
@@ -100,9 +147,9 @@ class AppThemes {
       
       // Color scheme
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryGreen,
+        seedColor: systemGreen,
         brightness: Brightness.light,
-        primary: primaryGreen,
+        primary: systemGreen,
         secondary: secondaryGreen,
         surface: Colors.white,
         background: const Color(0xFFF2F2F7), // iOS light background
@@ -115,7 +162,7 @@ class AppThemes {
       
       // App bar theme
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryGreen,
+        backgroundColor: systemGreen,
         foregroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
@@ -134,7 +181,7 @@ class AppThemes {
       // Button themes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: systemGreen,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
@@ -176,9 +223,9 @@ class AppThemes {
       
       // Color scheme - matches iOS app exactly
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryGreen,
+        seedColor: systemGreen,
         brightness: Brightness.dark,
-        primary: primaryGreen,
+        primary: systemGreen,
         secondary: secondaryGreen,
         surface: const Color(0xFF1C1C1E), // iOS dark card color
         background: Colors.black, // Pure black like iOS app
@@ -210,7 +257,7 @@ class AppThemes {
       // Button themes
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: systemGreen,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(

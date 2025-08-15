@@ -1,11 +1,12 @@
 // lib/screens/splash_screen.dart
 //
-// Enhanced animated splash screen with iOS-style animations
+// UPDATED: Enhanced animated splash screen with EXACT iOS gradient colors
+// ✅ IMPROVED: Perfect gradient matching from iOS app
 // ✅ IMPROVED: Smooth animations for logo, text, and loading indicator
 // ✅ IMPROVED: Professional timing and easing curves
-// ✅ IMPROVED: Better gradient matching your app theme
 
 import 'package:flutter/material.dart';
+import '../providers/theme_provider.dart'; // Import for gradient access
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -154,20 +155,8 @@ class _SplashScreenState extends State<SplashScreen>
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          // Enhanced gradient matching your app theme
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF2E7D32), // Dark green (primary)
-              Color(0xFF388E3C), // Medium green
-              Color(0xFF4CAF50), // Main green
-              Color(0xFF66BB6A), // Light green
-              Color(0xFF8BC34A), // Lime accent
-              Color(0xFFA1887F), // Brown accent (iOS style)
-            ],
-            stops: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-          ),
+          // EXACT iOS gradient using new theme colors
+          gradient: AppThemes.splashGradient,
         ),
         child: SafeArea(
           child: Column(
@@ -191,17 +180,26 @@ class _SplashScreenState extends State<SplashScreen>
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
+                            // Enhanced shadow for depth
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                              color: Colors.black.withOpacity(0.3),
+                              blurRadius: 25,
+                              offset: const Offset(0, 12),
+                              spreadRadius: 2,
+                            ),
+                            // Inner glow effect
+                            BoxShadow(
+                              color: AppThemes.systemGreen.withOpacity(0.2),
+                              blurRadius: 15,
+                              offset: const Offset(0, 0),
+                              spreadRadius: -5,
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.navigation,
                           size: 60,
-                          color: Color(0xFF2E7D32),
+                          color: AppThemes.secondaryGreen,
                         ),
                       ),
                     ),
@@ -209,7 +207,7 @@ class _SplashScreenState extends State<SplashScreen>
                 },
               ),
               
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
               
               // MARK: - Animated App Title
               AnimatedBuilder(
@@ -222,25 +220,31 @@ class _SplashScreenState extends State<SplashScreen>
                       child: const Text(
                         'DriveLess',
                         style: TextStyle(
-                          fontSize: 52,
-                          fontWeight: FontWeight.bold,
                           color: Colors.white,
-                          letterSpacing: -2,
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -1.5,
                           shadows: [
                             Shadow(
+                              color: Colors.black54,
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                            Shadow(
                               color: Colors.black26,
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
+                              blurRadius: 20,
+                              offset: Offset(0, 8),
                             ),
                           ],
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   );
                 },
               ),
               
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               
               // MARK: - Animated Tagline
               AnimatedBuilder(
@@ -253,73 +257,48 @@ class _SplashScreenState extends State<SplashScreen>
                       child: const Text(
                         'Drive Less, Save Time',
                         style: TextStyle(
-                          fontSize: 20,
                           color: Colors.white,
+                          fontSize: 20,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.5,
                           shadows: [
                             Shadow(
-                              color: Colors.black26,
-                              blurRadius: 4,
-                              offset: Offset(0, 1),
+                              color: Colors.black38,
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   );
                 },
               ),
               
-              // Spacer between text and loading
-              const Expanded(flex: 1, child: SizedBox()),
+              // Spacer to center content
+              const Expanded(flex: 2, child: SizedBox()),
               
               // MARK: - Animated Loading Indicator
               AnimatedBuilder(
                 animation: _loadingController,
                 builder: (context, child) {
-                  return FadeTransition(
-                    opacity: _loadingOpacity,
+                  return Opacity(
+                    opacity: _loadingOpacity.value,
                     child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.2),
-                          width: 1,
+                      margin: const EdgeInsets.only(bottom: 50),
+                      child: const SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          strokeWidth: 3,
                         ),
-                      ),
-                      child: const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          SizedBox(height: 12),
-                          Text(
-                            'Loading...',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   );
                 },
               ),
-              
-              // Bottom spacer
-              const Expanded(flex: 2, child: SizedBox()),
             ],
           ),
         ),
