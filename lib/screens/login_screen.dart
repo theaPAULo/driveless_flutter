@@ -1,9 +1,9 @@
 // lib/screens/login_screen.dart
 //
-// ENHANCED: Beautiful login screen matching iOS design with exact gradient
-// ✅ IMPROVED: Perfect gradient matching from iOS app
-// ✅ IMPROVED: Premium animations and visual effects
-// ✅ IMPROVED: Enhanced sign-in experience
+// ENHANCED: Login screen with comprehensive haptic feedback
+// ✅ IMPROVED: Haptic feedback on all interactions
+// ✅ IMPROVED: Premium feel with tactile responses
+// ✅ PRESERVES: All existing functionality and design
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +12,7 @@ import 'dart:io';
 
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/haptic_feedback_service.dart'; // NEW: Import haptic service
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -295,49 +296,55 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // MARK: - Feature Icon Builder
+  // MARK: - Feature Icon Builder with Haptics
   Widget _buildFeatureIcon(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+    return GestureDetector(
+      onTap: () {
+        // NEW: Add haptic feedback for feature icon taps
+        hapticFeedback.buttonTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.3),
+            width: 1,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: 28,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: Colors.white,
+              size: 28,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // MARK: - Sign In Card
+  // MARK: - Sign In Card with Haptics
   Widget _buildSignInCard() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -372,7 +379,7 @@ class _LoginScreenState extends State<LoginScreen>
           
           const SizedBox(height: 24),
           
-          // Apple Sign In Button
+          // Apple Sign In Button with Haptics
           Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
               return Column(
@@ -511,34 +518,40 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // MARK: - Sign In Handlers
+  // MARK: - Sign In Handlers with Enhanced Haptics
   Future<void> _handleAppleSignIn(BuildContext context) async {
-    // Add haptic feedback for iOS-style interaction
-    if (Platform.isIOS) {
-      HapticFeedback.lightImpact();
-    }
+    // NEW: Button tap haptic
+    await hapticFeedback.buttonTap();
     
     final authProvider = context.read<AuthProvider>();
     authProvider.clearError();
     await authProvider.signInWithApple();
     
     if (authProvider.errorMessage != null && context.mounted) {
+      // NEW: Error haptic for failed sign-in
+      await hapticFeedback.error();
       _showErrorSnackBar(context, authProvider.errorMessage!);
+    } else if (authProvider.user != null) {
+      // NEW: Success haptic for successful sign-in
+      await hapticFeedback.success();
     }
   }
   
   Future<void> _handleGoogleSignIn(BuildContext context) async {
-    // Add haptic feedback for iOS-style interaction
-    if (Platform.isIOS) {
-      HapticFeedback.lightImpact();
-    }
+    // NEW: Button tap haptic
+    await hapticFeedback.buttonTap();
     
     final authProvider = context.read<AuthProvider>();
     authProvider.clearError();
     await authProvider.signInWithGoogle();
     
     if (authProvider.errorMessage != null && context.mounted) {
+      // NEW: Error haptic for failed sign-in
+      await hapticFeedback.error();
       _showErrorSnackBar(context, authProvider.errorMessage!);
+    } else if (authProvider.user != null) {
+      // NEW: Success haptic for successful sign-in
+      await hapticFeedback.success();
     }
   }
   
