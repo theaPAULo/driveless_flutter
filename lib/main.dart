@@ -1,7 +1,7 @@
 // lib/main.dart
 //
-// PRESERVED: Main app entry point with minimal addition of usage tracking provider
-// All existing functionality preserved exactly
+// Updated main.dart with initial loading screen (iOS-style)
+// Shows brief initial loading before authentication logic
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,7 +10,8 @@ import 'package:provider/provider.dart';
 // Import providers and services  
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
-import 'services/usage_tracking_service.dart'; // ✅ Only new import
+import 'services/usage_tracking_service.dart';
+import 'screens/initial_loading_screen.dart'; // NEW
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_tab_view.dart';
@@ -27,8 +28,21 @@ void main() async {
   runApp(const DriveLessApp());
 }
 
-class DriveLessApp extends StatelessWidget {
+class DriveLessApp extends StatefulWidget {
   const DriveLessApp({super.key});
+
+  @override
+  State<DriveLessApp> createState() => _DriveLessAppState();
+}
+
+class _DriveLessAppState extends State<DriveLessApp> {
+  bool _showInitialLoading = true;
+
+  void _onInitialLoadingComplete() {
+    setState(() {
+      _showInitialLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +54,7 @@ class DriveLessApp extends StatelessWidget {
         // Authentication Provider
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         
-        // ✅ Usage Tracking Provider (only new addition)
+        // Usage Tracking Provider
         ChangeNotifierProvider(create: (_) => UsageTrackingService()),
       ],
       child: Consumer<ThemeProvider>(
@@ -61,20 +75,24 @@ class DriveLessApp extends StatelessWidget {
             darkTheme: AppThemes.darkTheme,
             themeMode: themeProvider.themeMode,
             
-            // App routing (unchanged)
-            home: Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                // Show splash screen while checking auth state
-                if (authProvider.isLoading) {
-                  return const SplashScreen();
-                }
-                
-                // Show main app if authenticated, login screen if not
-                return authProvider.isSignedIn 
-                  ? const MainTabView()
-                  : const LoginScreen();
-              },
-            ),
+            // App routing with initial loading screen
+            home: _showInitialLoading
+                ? InitialLoadingScreen(
+                    onLoadingComplete: _onInitialLoadingComplete,
+                  )
+                : Consumer<AuthProvider>(
+                    builder: (context, authProvider, child) {
+                      // Show splash screen while checking auth state
+                      if (authProvider.isLoading) {
+                        return const SplashScreen();
+                      }
+                      
+                      // Show main app if authenticated, login screen if not
+                      return authProvider.isSignedIn 
+                        ? const MainTabView()
+                        : const LoginScreen();
+                    },
+                  ),
           );
         },
       ),

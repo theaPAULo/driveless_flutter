@@ -1,10 +1,9 @@
 // lib/screens/welcome_screen.dart
 //
-// Enhanced animated welcome screen with iOS-style animations and polish
-// ✅ ENHANCED: Smooth animations for all elements
-// ✅ ENHANCED: Professional timing and easing curves
-// ✅ ENHANCED: Better styling and iOS-native feel
-// ✅ PRESERVES: All existing functionality and platform logic
+// DRAMATICALLY enhanced welcome screen - visually obvious improvements
+// ✅ Much larger, more prominent elements
+// ✅ Completely different visual treatment
+// ✅ iOS-style premium design
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -57,31 +56,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _initializeAnimations() {
-    // Logo controller (600ms)
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
     
-    // Text controller (500ms)
     _textController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
     
-    // Features controller (400ms)
     _featuresController = AnimationController(
       duration: const Duration(milliseconds: 400),
       vsync: this,
     );
     
-    // Buttons controller (500ms)
     _buttonsController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
 
-    // Logo animations
     _logoScale = Tween<double>(
       begin: 0.3,
       end: 1.0,
@@ -98,7 +92,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
     ));
 
-    // Title animations
     _titleOpacity = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -115,7 +108,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       curve: Curves.easeOutCubic,
     ));
 
-    // Subtitle animations
     _subtitleOpacity = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -132,7 +124,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
     ));
 
-    // Features animations
     _featuresOpacity = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -149,7 +140,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       curve: Curves.easeOutCubic,
     ));
 
-    // Buttons animations
     _buttonsOpacity = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -168,22 +158,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _startAnimationSequence() async {
-    // Start logo animation immediately
     _logoController.forward();
     
-    // Start text animation after 200ms
     await Future.delayed(const Duration(milliseconds: 200));
     if (mounted) {
       _textController.forward();
     }
     
-    // Start features animation after 300ms
     await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) {
       _featuresController.forward();
     }
     
-    // Start buttons animation after 200ms
     await Future.delayed(const Duration(milliseconds: 200));
     if (mounted) {
       _buttonsController.forward();
@@ -204,30 +190,31 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          // Enhanced gradient matching splash screen
+          // Premium gradient with more dramatic color transitions
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
+              Color(0xFF0D4E1B), // Very deep forest green
               Color(0xFF1B5E20), // Deep forest green
               Color(0xFF2E7D32), // Dark green (primary)
-              Color(0xFF388E3C), // Medium green
               Color(0xFF4CAF50), // Main green
               Color(0xFF66BB6A), // Light green
               Color(0xFF8BC34A), // Lime accent
+              Color(0xFFCDDC39), // Yellow-green
               Color(0xFFA1887F), // Brown accent (iOS style)
             ],
-            stops: [0.0, 0.15, 0.3, 0.5, 0.7, 0.85, 1.0],
+            stops: [0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 60),
                 
-                // MARK: - Animated Logo
+                // MARK: - Dramatically Enhanced Logo
                 AnimatedBuilder(
                   animation: _logoController,
                   builder: (context, child) {
@@ -236,30 +223,36 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       child: Opacity(
                         opacity: _logoOpacity.value,
                         child: Container(
-                          width: 140,
-                          height: 140,
+                          width: 180, // MUCH LARGER
+                          height: 180,
                           decoration: BoxDecoration(
                             color: Colors.white,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 25,
-                                offset: const Offset(0, 12),
-                                spreadRadius: 2,
+                                color: Colors.black.withOpacity(0.4),
+                                blurRadius: 30,
+                                offset: const Offset(0, 15),
+                                spreadRadius: 5,
                               ),
                               BoxShadow(
-                                color: Colors.white.withOpacity(0.1),
+                                color: Colors.green.withOpacity(0.3),
                                 blurRadius: 40,
-                                offset: const Offset(0, -5),
-                                spreadRadius: -5,
+                                offset: const Offset(0, 5),
+                                spreadRadius: -10,
+                              ),
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.2),
+                                blurRadius: 50,
+                                offset: const Offset(0, -10),
+                                spreadRadius: -15,
                               ),
                             ],
                           ),
                           child: const Icon(
                             Icons.navigation,
                             color: Color(0xFF2E7D32),
-                            size: 70,
+                            size: 90, // MUCH LARGER ICON
                           ),
                         ),
                       ),
@@ -267,9 +260,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   },
                 ),
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
                 
-                // MARK: - Animated Title
+                // MARK: - Dramatically Enhanced Title
                 AnimatedBuilder(
                   animation: _textController,
                   builder: (context, child) {
@@ -277,36 +270,52 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       position: _titleSlide,
                       child: FadeTransition(
                         opacity: _titleOpacity,
-                        child: const Text(
-                          'DriveLess',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -2.5,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black38,
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                              Shadow(
-                                color: Colors.black26,
-                                blurRadius: 25,
-                                offset: Offset(0, 8),
-                              ),
-                            ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.1),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
+                          child: const Text(
+                            'DriveLess',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 64, // MUCH LARGER
+                              fontWeight: FontWeight.w900, // BOLDER
+                              letterSpacing: -3,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 15,
+                                  offset: Offset(0, 5),
+                                ),
+                                Shadow(
+                                  color: Colors.black38,
+                                  blurRadius: 30,
+                                  offset: Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
                 
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 
-                // MARK: - Animated Subtitle
+                // MARK: - Enhanced Subtitle with Background
                 AnimatedBuilder(
                   animation: _textController,
                   builder: (context, child) {
@@ -314,37 +323,43 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       position: _subtitleSlide,
                       child: FadeTransition(
                         opacity: _subtitleOpacity,
-                        child: const Text(
-                          'Optimize your routes, save time and fuel',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.8,
-                            height: 1.4,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black38,
-                                blurRadius: 8,
-                                offset: Offset(0, 3),
-                              ),
-                              Shadow(
-                                color: Colors.black26,
-                                blurRadius: 15,
-                                offset: Offset(0, 6),
-                              ),
-                            ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
+                          child: const Text(
+                            'Optimize your routes, save time and fuel',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22, // LARGER
+                              fontWeight: FontWeight.w600, // BOLDER
+                              letterSpacing: 1.0,
+                              height: 1.4,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 10,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
                 
-                const SizedBox(height: 60),
+                const SizedBox(height: 50),
                 
-                // MARK: - Animated Feature Icons
+                // MARK: - Dramatically Enhanced Feature Icons
                 AnimatedBuilder(
                   animation: _featuresController,
                   builder: (context, child) {
@@ -352,7 +367,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                       position: _featuresSlide,
                       child: FadeTransition(
                         opacity: _featuresOpacity,
-                        child: _buildFeatureIcons(),
+                        child: Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: _buildEnhancedFeatureIcons(),
+                        ),
                       ),
                     );
                   },
@@ -360,7 +391,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 
                 const Spacer(),
                 
-                // MARK: - Animated Auth Buttons
+                // MARK: - Premium Auth Buttons
                 AnimatedBuilder(
                   animation: _buttonsController,
                   builder: (context, child) {
@@ -376,7 +407,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 
                 const SizedBox(height: 20),
                 
-                // MARK: - Privacy Text (always visible)
                 _buildPrivacyText(),
                 
                 const SizedBox(height: 40),
@@ -388,24 +418,23 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  /// Build feature icons with enhanced styling
-  Widget _buildFeatureIcons() {
+  Widget _buildEnhancedFeatureIcons() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         _buildFeatureIcon(
           Icons.navigation,
-          'Smart Routes',
+          'Smart\nRoutes',
           const Color(0xFF4CAF50),
         ),
         _buildFeatureIcon(
           Icons.schedule,
-          'Real-Time',
+          'Real-Time\nTraffic',
           const Color(0xFF2196F3),
         ),
         _buildFeatureIcon(
           Icons.local_gas_station,
-          'Save Fuel',
+          'Save\nFuel',
           const Color(0xFFFF9800),
         ),
       ],
@@ -416,33 +445,37 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     return Column(
       children: [
         Container(
-          width: 72,
-          height: 72,
+          width: 90, // MUCH LARGER
+          height: 90,
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
+            gradient: RadialGradient(
+              colors: [
+                Colors.white.withOpacity(0.25),
+                Colors.white.withOpacity(0.1),
+              ],
+            ),
             shape: BoxShape.circle,
             border: Border.all(
-              color: Colors.white.withOpacity(0.25),
-              width: 1.5,
+              color: Colors.white.withOpacity(0.4),
+              width: 2,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 15,
-                offset: const Offset(0, 6),
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: Colors.white.withOpacity(0.1),
-                blurRadius: 20,
-                offset: const Offset(0, -3),
-                spreadRadius: -5,
+                color: iconColor.withOpacity(0.3),
+                blurRadius: 25,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Icon(
             icon,
             color: Colors.white,
-            size: 32,
+            size: 40, // LARGER ICON
           ),
         ),
         const SizedBox(height: 16),
@@ -450,39 +483,37 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           label,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontSize: 16, // LARGER
+            fontWeight: FontWeight.w700, // BOLDER
             letterSpacing: 0.8,
+            height: 1.2,
             shadows: [
               Shadow(
-                color: Colors.black38,
-                blurRadius: 4,
+                color: Colors.black54,
+                blurRadius: 6,
                 offset: Offset(0, 2),
               ),
             ],
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
-  /// Build authentication section with platform-specific logic
   Widget _buildAuthenticationSection(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Show Apple Sign In button ONLY on iOS
         if (Platform.isIOS) ...[
           _buildAppleSignInButton(context, authProvider),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
         
-        // Show Google Sign In button on BOTH platforms
         _buildGoogleSignInButton(context, authProvider),
         
-        // Show error message if exists
         if (authProvider.errorMessage != null) ...[
           const SizedBox(height: 16),
           _buildErrorMessage(authProvider.errorMessage!),
@@ -491,82 +522,24 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  /// Build enhanced Apple Sign In button (iOS ONLY)
   Widget _buildAppleSignInButton(BuildContext context, AuthProvider authProvider) {
     return Container(
-      height: 60,
+      height: 70, // MUCH TALLER
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-            spreadRadius: 1,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 25,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: authProvider.isLoading 
-            ? null 
-            : () => _handleAppleSignIn(context),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          elevation: 0,
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1C1C1E), Color(0xFF000000)],
         ),
-        child: authProvider.isLoading
-            ? const SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.apple, size: 26),
-                  SizedBox(width: 14),
-                  Text(
-                    'Continue with Apple',
-                    style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  /// Build enhanced Google Sign In button
-  Widget _buildGoogleSignInButton(BuildContext context, AuthProvider authProvider) {
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 15,
-            offset: const Offset(0, 6),
-            spreadRadius: 1,
+            color: Colors.black.withOpacity(0.6),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
           ),
           BoxShadow(
             color: Colors.white.withOpacity(0.1),
-            blurRadius: 20,
+            blurRadius: 15,
             offset: const Offset(0, -2),
             spreadRadius: -3,
           ),
@@ -575,54 +548,35 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       child: ElevatedButton(
         onPressed: authProvider.isLoading 
             ? null 
-            : () => _handleGoogleSignIn(context),
+            : () => _handleAppleSignIn(context),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
           ),
-          elevation: 0,
         ),
         child: authProvider.isLoading
             ? const SizedBox(
-                width: 26,
-                height: 26,
+                width: 28,
+                height: 28,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black54),
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : Row(
+            : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/google_logo.png',
-                    width: 26,
-                    height: 26,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: Colors.blue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.g_mobiledata,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(width: 14),
-                  const Text(
-                    'Continue with Google',
+                  Icon(Icons.apple, size: 30),
+                  SizedBox(width: 16),
+                  Text(
+                    'Continue with Apple',
                     style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.6,
+                      fontSize: 22, // LARGER
+                      fontWeight: FontWeight.w700, // BOLDER
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ],
@@ -631,15 +585,103 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  /// Build error message with enhanced styling
+  Widget _buildGoogleSignInButton(BuildContext context, AuthProvider authProvider) {
+    return Container(
+      height: 70, // MUCH TALLER
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFFFF), Color(0xFFF8F9FA)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 2,
+          ),
+          BoxShadow(
+            color: Colors.green.withOpacity(0.2),
+            blurRadius: 25,
+            offset: const Offset(0, 4),
+            spreadRadius: -5,
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: authProvider.isLoading 
+            ? null 
+            : () => _handleGoogleSignIn(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.black87,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+        ),
+        child: authProvider.isLoading
+            ? const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black54),
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/google_logo.png',
+                    width: 30,
+                    height: 30,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 30,
+                        height: 30,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF4285F4), Color(0xFF34A853)],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.g_mobiledata,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      fontSize: 22, // LARGER
+                      fontWeight: FontWeight.w700, // BOLDER
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   Widget _buildErrorMessage(String message) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            Colors.red.withOpacity(0.2),
+            Colors.red.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.red.withOpacity(0.3),
+          color: Colors.red.withOpacity(0.4),
           width: 1,
         ),
       ),
@@ -648,16 +690,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           const Icon(
             Icons.error_outline,
             color: Colors.red,
-            size: 20,
+            size: 24,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
                 color: Colors.red,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -666,30 +708,35 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  /// Build privacy text
   Widget _buildPrivacyText() {
-    return Text(
-      'By signing in, you agree to our Terms of Service and Privacy Policy. Your data is securely stored and never shared.',
-      style: TextStyle(
-        color: Colors.white.withOpacity(0.85),
-        fontSize: 13,
-        height: 1.5,
-        letterSpacing: 0.3,
-        shadows: const [
-          Shadow(
-            color: Colors.black26,
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
       ),
-      textAlign: TextAlign.center,
+      child: Text(
+        'By signing in, you agree to our Terms of Service and Privacy Policy. Your data is securely stored and never shared.',
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.9),
+          fontSize: 14,
+          height: 1.5,
+          letterSpacing: 0.4,
+          shadows: const [
+            Shadow(
+              color: Colors.black38,
+              blurRadius: 4,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        textAlign: TextAlign.center,
+      ),
     );
   }
 
   // MARK: - Actions (Preserved Logic)
   
-  /// Handle Apple Sign-In (iOS ONLY)
   Future<void> _handleAppleSignIn(BuildContext context) async {
     HapticFeedback.lightImpact();
     final authProvider = context.read<AuthProvider>();
@@ -711,7 +758,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     }
   }
   
-  /// Handle Google Sign-In (BOTH platforms)
   Future<void> _handleGoogleSignIn(BuildContext context) async {
     HapticFeedback.lightImpact();
     final authProvider = context.read<AuthProvider>();
@@ -733,7 +779,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     }
   }
   
-  /// Show error snackbar
   void _showErrorSnackBar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
