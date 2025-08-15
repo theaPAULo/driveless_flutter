@@ -71,10 +71,11 @@ class _AnimatedButtonState extends State<AnimatedButton>
       _isPressed = true;
     });
     
-    // Trigger haptic feedback on press start
+    // Trigger haptic feedback on press start using correct method
     if (widget.enableHaptics && mounted) {
       try {
-        context.read<HapticFeedbackService>().lightImpact();
+        // Using buttonTap() method which calls impact(HapticType.light)
+        context.read<HapticFeedbackService>().buttonTap();
       } catch (e) {
         // Fallback if haptic service not available
         print('Haptic feedback not available: $e');
@@ -191,10 +192,11 @@ class _PrimaryAnimatedButtonState extends State<PrimaryAnimatedButton>
   void _handleTapDown(TapDownDetails details) {
     if (!widget.enabled) return;
     
-    // Enhanced haptic feedback for primary actions
+    // Enhanced haptic feedback for primary actions using correct method
     if (mounted) {
       try {
-        context.read<HapticFeedbackService>().mediumImpact();
+        // Using importantAction() method which calls impact(HapticType.medium)
+        context.read<HapticFeedbackService>().importantAction();
       } catch (e) {
         print('Haptic feedback not available: $e');
       }
@@ -228,136 +230,26 @@ class _PrimaryAnimatedButtonState extends State<PrimaryAnimatedButton>
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
       child: AnimatedBuilder(
-        animation: _animationController,
+        animation: _scaleAnimation,
         builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF34C759).withOpacity(0.3),
-                    blurRadius: _elevationAnimation.value,
-                    offset: Offset(0, _elevationAnimation.value / 2),
-                  ),
-                ],
-              ),
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: _elevationAnimation.value,
+                  offset: Offset(0, _elevationAnimation.value / 2),
+                ),
+              ],
+            ),
+            child: Transform.scale(
+              scale: _scaleAnimation.value,
               child: widget.child,
             ),
           );
         },
       ),
-    );
-  }
-}
-
-/// Quick extension methods for easy micro-animation application
-extension AnimatedButtonExtensions on Widget {
-  /// Wrap any widget with subtle micro-animations
-  Widget withMicroAnimations({
-    VoidCallback? onPressed,
-    bool enableHaptics = true,
-    double scaleIntensity = 0.95,
-  }) {
-    return AnimatedButton(
-      onPressed: onPressed,
-      enableHaptics: enableHaptics,
-      scaleIntensity: scaleIntensity,
-      child: this,
-    );
-  }
-  
-  /// Wrap any widget with enhanced primary button animations
-  Widget withPrimaryAnimations({
-    VoidCallback? onPressed,
-    bool enabled = true,
-  }) {
-    return PrimaryAnimatedButton(
-      onPressed: onPressed,
-      enabled: enabled,
-      child: this,
-    );
-  }
-}
-
-/// Animated loading state with pulsing effect
-class AnimatedLoadingIndicator extends StatefulWidget {
-  final Color? color;
-  final double size;
-  final String? message;
-  
-  const AnimatedLoadingIndicator({
-    super.key,
-    this.color,
-    this.size = 24.0,
-    this.message,
-  });
-
-  @override
-  State<AnimatedLoadingIndicator> createState() => _AnimatedLoadingIndicatorState();
-}
-
-class _AnimatedLoadingIndicatorState extends State<AnimatedLoadingIndicator>
-    with SingleTickerProviderStateMixin {
-  
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-    
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _pulseController.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedBuilder(
-          animation: _pulseAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _pulseAnimation.value,
-              child: CircularProgressIndicator(
-                color: widget.color ?? const Color(0xFF34C759),
-                strokeWidth: 3,
-              ),
-            );
-          },
-        ),
-        if (widget.message != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            widget.message!,
-            style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ],
     );
   }
 }
