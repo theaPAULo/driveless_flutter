@@ -333,185 +333,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-  // ✅ FIXED: Location input with proper button positioning
-  Widget _buildLocationInputWithSavedAddresses({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hintText,
-    required String fieldId,
-    bool isStart = false,
-    int? stopIndex,
-    required Color iconColor,
-    required bool isDisabled,
-    required Function(String) onAddressSelected,
-    VoidCallback? onRemove,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ✅ Saved address buttons displayed horizontally ABOVE input field
-        if (_savedAddresses.isNotEmpty && !isDisabled) ...[
-          Row(
-            children: [
-              // Home button
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _selectSavedAddress(SavedAddressType.home, controller, onAddressSelected);
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF34C759).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF34C759).withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.home,
-                    color: Color(0xFF34C759),
-                    size: 18,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(width: 8),
-              
-              // Work button
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _selectSavedAddress(SavedAddressType.work, controller, onAddressSelected);
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1976D2).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF1976D2).withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.business,
-                    color: Color(0xFF1976D2),
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-        ],
-        
-        // ✅ FIXED: Input field row with current location button to the LEFT of text input
-        Row(
-          children: [
-            // ✅ FIXED: Current location button positioned to LEFT of text input (for start, stops, AND destination)
-            if (!isDisabled) ...[
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  _useCurrentLocation(isStart, stopIndex: stopIndex);
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: iconColor.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.my_location,
-                    color: iconColor,
-                    size: 18,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(width: 12),
-            ],
-            
-            // Text input field
-            Expanded(
-              child: _isLoadingLocation(fieldId)
-                  ? Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).brightness == Brightness.dark 
-                            ? Colors.grey[800] 
-                            : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
-                          ),
-                        ),
-                      ),
-                    )
-                  : AutocompleteTextField(
-                      controller: controller,
-                      hint: hintText,
-                      icon: icon,
-                      iconColor: iconColor,
-                      enabled: !isDisabled,
-                      onPlaceSelected: (place) {
-                        onAddressSelected(place.formattedAddress);
-                      },
-                      onChanged: () {
-                        // Handle text changes if needed
-                      },
-                    ),
-            ),
-            
-            // Remove button for stops
-            if (onRemove != null) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  onRemove();
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.red.withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.red,
-                    size: 16,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ],
-    );
-  }
-
   // MARK: - Add Stop Button
   Widget _buildAddStopButton() {
     return GestureDetector(
@@ -618,6 +439,252 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       ),
     );
   }
+
+// lib/screens/route_input_screen.dart - CORRECTED METHODS
+//
+// FIXED: Corrected AutocompleteTextField parameters
+// Use these methods to replace the existing ones in your route_input_screen.dart
+
+Widget _buildLocationInputWithSavedAddresses({
+  required TextEditingController controller,
+  required IconData icon,
+  required String hintText,
+  required String fieldId,
+  bool isStart = false,
+  int? stopIndex,
+  required Color iconColor,
+  required bool isDisabled,
+  required Function(String) onAddressSelected,
+  VoidCallback? onRemove,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // ✅ FIXED: Show ALL saved address types (Home, Work, AND Custom addresses)
+      if (_savedAddresses.isNotEmpty && !isDisabled) ...[
+        // Build a scrollable row of saved address buttons
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Home button (if exists)
+              if (_savedAddresses.any((addr) => addr.addressType == SavedAddressType.home))
+                _buildSavedAddressButton(
+                  SavedAddressType.home,
+                  Icons.home,
+                  const Color(0xFF34C759),
+                  controller,
+                  onAddressSelected,
+                ),
+              
+              // Work button (if exists)
+              if (_savedAddresses.any((addr) => addr.addressType == SavedAddressType.work)) ...[
+                const SizedBox(width: 8),
+                _buildSavedAddressButton(
+                  SavedAddressType.work,
+                  Icons.business,
+                  const Color(0xFF1976D2),
+                  controller,
+                  onAddressSelected,
+                ),
+              ],
+              
+              // ✅ FIXED: Custom address buttons (show up to 3 custom addresses)
+              ...(_savedAddresses
+                  .where((addr) => addr.addressType == SavedAddressType.custom)
+                  .take(3)
+                  .map((customAddr) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _buildCustomAddressButton(
+                    customAddr,
+                    controller,
+                    onAddressSelected,
+                  ),
+                );
+              }).toList()),
+            ],
+          ),
+        ),
+        
+        const SizedBox(height: 12),
+      ],
+      
+      // Input field row with current location button
+      Row(
+        children: [
+          // Current location button (for start, stops, AND destination)
+          if (!isDisabled) ...[
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _useCurrentLocation(isStart, stopIndex: stopIndex);
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: iconColor.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.my_location,
+                  color: iconColor,
+                  size: 18,
+                ),
+              ),
+            ),
+            
+            const SizedBox(width: 12),
+          ],
+          
+          // Text input field
+          Expanded(
+            child: _isLoadingLocation(fieldId)
+                ? Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).brightness == Brightness.dark 
+                          ? const Color(0xFF2C2C2E)
+                          : Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF34C759)),
+                      ),
+                    ),
+                  )
+                : AutocompleteTextField(
+                    controller: controller,
+                    hint: hintText, // ✅ FIXED: Use 'hint' instead of 'hintText'
+                    icon: icon,
+                    iconColor: iconColor,
+                    enabled: !isDisabled, // ✅ FIXED: Use 'enabled' instead of 'isDisabled'
+                    onPlaceSelected: (place) {
+                      onAddressSelected(place.formattedAddress);
+                    },
+                    onChanged: () {
+                      // Handle text changes if needed
+                    },
+                  ),
+          ),
+          
+          // Remove stop button (only for stops)
+          if (onRemove != null) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.red.withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.remove,
+                  color: Colors.red,
+                  size: 18,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ],
+  );
+}
+
+// ✅ NEW: Helper method for saved address buttons (Home/Work)
+Widget _buildSavedAddressButton(
+  SavedAddressType type,
+  IconData iconData,
+  Color color,
+  TextEditingController controller,
+  Function(String) onAddressSelected,
+) {
+  return GestureDetector(
+    onTap: () {
+      HapticFeedback.lightImpact();
+      _selectSavedAddress(type, controller, onAddressSelected);
+    },
+    child: Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Icon(
+        iconData,
+        color: color,
+        size: 18,
+      ),
+    ),
+  );
+}
+
+// ✅ NEW: Helper method for custom address buttons
+Widget _buildCustomAddressButton(
+  SavedAddress customAddress,
+  TextEditingController controller,
+  Function(String) onAddressSelected,
+) {
+  return GestureDetector(
+    onTap: () {
+      HapticFeedback.lightImpact();
+      // Use the custom address directly
+      controller.text = customAddress.fullAddress;
+      onAddressSelected(customAddress.fullAddress);
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF7B1FA2).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF7B1FA2).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.place,
+            color: Color(0xFF7B1FA2),
+            size: 16,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            customAddress.label.length > 8 
+                ? '${customAddress.label.substring(0, 8)}...'
+                : customAddress.label,
+            style: const TextStyle(
+              color: Color(0xFF7B1FA2),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildToggleItem({
     required IconData icon,
