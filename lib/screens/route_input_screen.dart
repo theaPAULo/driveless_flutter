@@ -13,7 +13,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../widgets/error_states.dart' as error_ui;
+import '../services/error_tracking_service.dart' as tracking;
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
@@ -64,6 +65,45 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   bool _isLoadingLocation(String fieldId) {
     return _loadingStates[fieldId] ?? false;
   }
+
+  bool _hasError = false;
+  error_ui.ErrorType _currentErrorType = error_ui.ErrorType.general;
+  String _errorMessage = '';
+
+   // MINIMAL CHANGES: Add these 3 helper methods
+  void _showError(error_ui.ErrorType errorType, String message) {
+    setState(() {
+      _hasError = true;
+      _currentErrorType = errorType;
+      _errorMessage = message;
+      _isOptimizing = false; // Stop loading if active
+    });
+    
+    // Add haptic feedback
+    HapticFeedback.heavyImpact();
+    
+    // Track error for analytics  
+    _errorTrackingService.trackError(
+      errorType: tracking.ErrorType.routeCalculation,
+      errorMessage: message,
+      severity: tracking.ErrorSeverity.medium,
+      location: 'route_input_screen',
+    );
+  }
+
+  void _clearError() {
+    setState(() {
+      _hasError = false;
+    });
+  }
+    void _handleRetryFromError() {
+    _clearError();
+    // Small delay then retry the route optimization
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _handleEnhancedOptimizeRoute();
+    });
+  }
+
 
     Future<void> _loadDefaultSettings() async {
     try {
@@ -122,6 +162,19 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
   @override
   Widget build(BuildContext context) {
+  if (_hasError) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SafeArea(
+          child: error_ui.EnhancedErrorScreen(
+            errorType: _currentErrorType,
+            customMessage: _errorMessage,
+            onRetry: _handleRetryFromError,
+            onGoHome: _clearError,
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -942,31 +995,25 @@ Widget _buildCustomAddressButton(
     }
   }
 
+    // MINIMAL CHANGES: Replace your existing _handleEnhancedOptimizeRoute method with this
   Future<void> _handleEnhancedOptimizeRoute() async {
-    // Check usage limits first
     final usageService = context.read<UsageTrackingService>();
-    if (!await usageService.canPerformRouteCalculation()) {
-      HapticFeedback.heavyImpact();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Daily usage limit reached (10 searches per day). Please try again tomorrow.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
-        );
-      }
+
+    // ENHANCED: Replace SnackBar with error state
+    final canOptimize = await usageService.canPerformRouteCalculation();
+    if (!canOptimize) {
+      _showError(
+        error_ui.ErrorType.apiLimit,
+        'You\'ve reached your daily limit of 10 route optimizations. Please try again tomorrow.'
+      );
       return;
     }
 
-    // Validation
+    // ENHANCED: Replace SnackBar with error state  
     if (_startLocationController.text.isEmpty || _endLocationController.text.isEmpty) {
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both start and end locations'),
-          backgroundColor: Colors.red,
-        ),
+      _showError(
+        error_ui.ErrorType.general,
+        'Please enter both start and end locations to optimize your route.'
       );
       return;
     }
@@ -979,7 +1026,7 @@ Widget _buildCustomAddressButton(
     HapticFeedback.mediumImpact();
 
     try {
-      // Prepare data
+      // ALL YOUR EXISTING OPTIMIZATION LOGIC STAYS THE SAME
       final List<String> stops = _stopControllers
           .asMap()
           .entries
@@ -992,7 +1039,6 @@ Widget _buildCustomAddressButton(
           .map((controller) => controller.text)
           .toList();
 
-      // Create original inputs
       final originalInputs = OriginalRouteInputs(
         startLocation: _startLocationAddress.isNotEmpty ? _startLocationAddress : _startLocationController.text,
         endLocation: _isRoundTrip ? _startLocationAddress : _endLocationAddress,
@@ -1004,7 +1050,6 @@ Widget _buildCustomAddressButton(
         includeTraffic: _includeTraffic,
       );
 
-      // Call route optimization service
       final routeResult = await _routeService.calculateOptimizedRoute(
         startLocation: originalInputs.startLocation,
         endLocation: originalInputs.endLocation,
@@ -1012,10 +1057,8 @@ Widget _buildCustomAddressButton(
         originalInputs: originalInputs,
       );
 
-      // Increment usage counter
       await usageService.incrementUsage();
 
-      // Navigate to results
       if (mounted) {
         Navigator.push(
           context,
@@ -1029,20 +1072,30 @@ Widget _buildCustomAddressButton(
       }
 
     } catch (e) {
-      // Error haptic feedback
-      HapticFeedback.heavyImpact();
-      
       print('❌ Route optimization failed: $e');
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to optimize route: $e'),
-            backgroundColor: Colors.red[400],
-            duration: const Duration(seconds: 5),
-          ),
-        );
+      // ENHANCED: Replace SnackBar with smart error detection
+      error_ui.ErrorType errorType = error_ui.ErrorType.general;
+      String errorMessage = 'An unexpected error occurred while optimizing your route.';
+      
+      String errorString = e.toString().toLowerCase();
+      
+      if (errorString.contains('network') || errorString.contains('socket') || errorString.contains('connection')) {
+        errorType = error_ui.ErrorType.network;
+        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+      } else if (errorString.contains('location') || errorString.contains('geocod')) {
+        errorType = error_ui.ErrorType.location;
+        errorMessage = 'Unable to find one or more of your locations. Please check your addresses and try again.';
+      } else if (errorString.contains('route') || errorString.contains('direction') || errorString.contains('no data')) {
+        errorType = error_ui.ErrorType.routeCalculation;
+        errorMessage = 'Could not calculate a route with the provided addresses. Please check your locations and try again.';
+      } else if (errorString.contains('quota') || errorString.contains('limit') || errorString.contains('billing')) {
+        errorType = error_ui.ErrorType.apiLimit;
+        errorMessage = 'Service temporarily unavailable. Please try again in a few minutes.';
       }
+      
+      _showError(errorType, errorMessage);
+      
     } finally {
       if (mounted) {
         setState(() {
