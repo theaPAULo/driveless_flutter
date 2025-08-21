@@ -14,6 +14,7 @@ import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
 import 'services/usage_tracking_service.dart';
 import 'services/haptic_feedback_service.dart';
+import 'services/biometric_auth_service.dart';
 import 'screens/initial_loading_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -227,6 +228,11 @@ class _DriveLessAppState extends State<DriveLessApp> {
         // Haptic Feedback Provider
         ChangeNotifierProvider<HapticFeedbackService>.value(
           value: hapticFeedback,
+        ),
+        
+        // Biometric Authentication Provider
+        ChangeNotifierProvider<BiometricAuthService>.value(
+          value: biometricAuth,
         ),
       ],
       child: Consumer<ThemeProvider>(

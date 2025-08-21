@@ -11,26 +11,40 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
+import '../services/biometric_auth_service.dart';
+
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final BiometricAuthService _biometricAuth = BiometricAuthService();
 
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _biometricPromptShown = false;
 
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isSignedIn => _user != null;
+  BiometricAuthService get biometricAuth => _biometricAuth;
+  bool get biometricPromptShown => _biometricPromptShown;
 
   AuthProvider() {
+    // Initialize biometric authentication
+    _initializeBiometric();
+    
     // Listen to authentication state changes
     _auth.authStateChanges().listen((User? user) {
       _user = user;
       notifyListeners();
     });
+  }
+
+  /// Initialize biometric authentication service
+  Future<void> _initializeBiometric() async {
+    await _biometricAuth.initialize();
   }
 
   /// Set loading state
@@ -265,5 +279,68 @@ class AuthProvider with ChangeNotifier {
     if (user != null) {
       await user.reauthenticateWithCredential(oauthCredential);
     }
+  }
+
+  /// Authenticate with biometrics for app access
+  Future<bool> authenticateWithBiometrics() async {
+    if (!_biometricAuth.isAvailable || !_biometricAuth.isEnabled) {
+      return false;
+    }
+
+    try {
+      _setLoading(true);
+      _errorMessage = null;
+
+      final result = await _biometricAuth.authenticate(
+        reason: 'Use ${_biometricAuth.getBiometricTypeName()} to access DriveLess',
+      );
+
+      if (result == BiometricAuthResult.success) {
+        debugPrint('🔐 Biometric authentication successful');
+        return true;
+      } else {
+        debugPrint('❌ Biometric authentication failed: $result');
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Biometric authentication failed: ${e.toString()}';
+      debugPrint('❌ Biometric authentication error: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Show biometric setup prompt to user
+  Future<bool> showBiometricSetup() async {
+    if (!_biometricAuth.shouldShowBiometricOption()) {
+      return false;
+    }
+
+    try {
+      final success = await _biometricAuth.enableBiometricAuth();
+      if (success) {
+        await _biometricAuth.markSetupComplete();
+        debugPrint('✅ Biometric setup completed');
+      }
+      return success;
+    } catch (e) {
+      _errorMessage = 'Biometric setup failed: ${e.toString()}';
+      debugPrint('❌ Biometric setup error: $e');
+      return false;
+    }
+  }
+
+  /// Mark that biometric prompt has been shown
+  void markBiometricPromptShown() {
+    _biometricPromptShown = true;
+    notifyListeners();
+  }
+
+  /// Check if biometric setup should be offered to user
+  bool shouldOfferBiometricSetup() {
+    return _biometricAuth.shouldShowBiometricOption() && 
+           !_biometricAuth.isEnabled && 
+           !_biometricPromptShown;
   }
 }

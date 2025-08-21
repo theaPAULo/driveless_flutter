@@ -29,8 +29,11 @@ dependencies:
   cloud_firestore: ^5.5.0      # Your working version
   google_sign_in: ^6.2.2       # Your working version
 
-  # ✅ Apple Sign-In Integration - CURRENT WORKING VERSION
-  sign_in_with_apple: ^5.0.0   # Your working version
+  # ✅ Apple Sign-In Integration - UPDATED VERSION for Android compatibility
+  sign_in_with_apple: ^6.1.2   # Updated for better Android/Kotlin compatibility
+  
+  # ✅ Biometric Authentication - NEW ADDITION
+  local_auth: ^2.3.0           # Biometric authentication (Face ID, Touch ID, Fingerprint)
   
   # State Management (preserved)
   provider: ^6.1.2

@@ -11,7 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; // RESTORED: URL launcher
 
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/biometric_setup_modal.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -188,6 +190,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
               themeProvider,
             ),
+          ], themeProvider),
+
+          // SECURITY Section
+          _buildSectionHeader('SECURITY', themeProvider),
+          _buildSettingsCard([
+            _buildBiometricSetting(themeProvider),
           ], themeProvider),
 
           // ROUTE DEFAULTS Section
@@ -458,12 +466,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String subtitle,
     bool value,
     Function(bool) onChanged,
-    ThemeProvider themeProvider,
-  ) {
+    ThemeProvider themeProvider, {
+    String? icon,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
+          if (icon != null) ...[
+            Text(
+              icon,
+              style: const TextStyle(fontSize: 20),
+            ),
+            const SizedBox(width: 16),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,6 +750,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(
         content: Text('Unable to open $linkType. Please try again later.'),
         backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  /// Build biometric authentication setting
+  Widget _buildBiometricSetting(ThemeProvider themeProvider) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final biometricAuth = authProvider.biometricAuth;
+        final isAvailable = biometricAuth.isAvailable;
+        final isEnabled = biometricAuth.isEnabled;
+        
+        if (!isAvailable) {
+          // Show unavailable state
+          return _buildUnavailableBiometricSetting(themeProvider);
+        }
+        
+        return _buildSwitchSetting(
+          biometricAuth.getBiometricTypeName(),
+          'Use ${biometricAuth.getBiometricTypeName()} to unlock DriveLess',
+          isEnabled,
+          (value) async {
+            if (value) {
+              // Enable biometric authentication
+              final success = await authProvider.showBiometricSetup();
+              if (!success && mounted) {
+                // Show error if setup failed
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      authProvider.errorMessage ?? 'Failed to enable biometric authentication',
+                    ),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }
+            } else {
+              // Disable biometric authentication
+              await biometricAuth.disableBiometricAuth();
+            }
+          },
+          themeProvider,
+          icon: biometricAuth.getBiometricIcon(),
+        );
+      },
+    );
+  }
+
+  /// Build unavailable biometric setting (grayed out)
+  Widget _buildUnavailableBiometricSetting(ThemeProvider themeProvider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Row(
+        children: [
+          Text(
+            '🔐',
+            style: const TextStyle(fontSize: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Biometric Authentication',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: (themeProvider.currentTheme == AppThemeMode.dark
+                        ? Colors.grey[500]
+                        : Colors.grey[400]),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Not available on this device',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: (themeProvider.currentTheme == AppThemeMode.dark
+                        ? Colors.grey[600]
+                        : Colors.grey[500]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

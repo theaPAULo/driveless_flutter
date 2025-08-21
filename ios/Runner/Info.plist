@@ -57,5 +57,9 @@
         </array>
     </dict>
 </array>
+
+	<!-- Biometric Authentication Permissions -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID to quickly and securely access DriveLess</string>
 </dict>
 </plist>
