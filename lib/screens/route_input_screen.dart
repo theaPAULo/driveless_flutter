@@ -493,12 +493,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     );
   }
 
-// lib/screens/route_input_screen.dart - CORRECTED METHODS
-//
-// FIXED: Corrected AutocompleteTextField parameters
-// Use these methods to replace the existing ones in your route_input_screen.dart
 
-Widget _buildLocationInputWithSavedAddresses({
+  Widget _buildLocationInputWithSavedAddresses({
   required TextEditingController controller,
   required IconData icon,
   required String hintText,
@@ -656,78 +652,7 @@ Widget _buildLocationInputWithSavedAddresses({
       ),
     ],
   );
-}
-
-// ✅ NEW: Helper method for saved address buttons (Home/Work)
-Widget _buildSavedAddressButton(
-  SavedAddressType type,
-  IconData iconData,
-  Color color,
-  TextEditingController controller,
-  Function(String) onAddressSelected,
-) {
-  return GestureDetector(
-    onTap: () {
-      HapticFeedback.lightImpact();
-      _selectSavedAddress(type, controller, onAddressSelected);
-    },
-    child: Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: color.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Icon(
-        iconData,
-        color: color,
-        size: 18,
-      ),
-    ),
-  );
-}
-
-// lib/screens/route_input_screen.dart - UPDATED METHOD
-//
-// UPDATED: Custom address button to show only the purple icon (no text)
-// Replace the existing _buildCustomAddressButton method with this version
-
-// ✅ UPDATED: Helper method for custom address buttons (icon only)
-Widget _buildCustomAddressButton(
-  SavedAddress customAddress,
-  TextEditingController controller,
-  Function(String) onAddressSelected,
-) {
-  return GestureDetector(
-    onTap: () {
-      HapticFeedback.lightImpact();
-      // Use the custom address directly
-      controller.text = customAddress.fullAddress;
-      onAddressSelected(customAddress.fullAddress);
-    },
-    child: Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: const Color(0xFF7B1FA2).withOpacity(0.1),
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: const Color(0xFF7B1FA2).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: const Icon(
-        Icons.place,
-        color: Color(0xFF7B1FA2),
-        size: 18,
-      ),
-    ),
-  );
-}
+  }
 
   Widget _buildToggleItem({
     required IconData icon,
@@ -886,26 +811,6 @@ Widget _buildCustomAddressButton(
         _stopAddresses.removeAt(index);
       }
     });
-  }
-
-  void _selectSavedAddress(SavedAddressType type, TextEditingController controller, Function(String) onAddressSelected) {
-    final address = _savedAddresses.firstWhere(
-      (addr) => addr.addressType == type,
-      orElse: () => SavedAddress(
-        id: '',
-        label: '',
-        fullAddress: '',
-        displayName: '',
-        addressType: type,
-        createdDate: DateTime.now(),
-      ),
-    );
-    
-    if (address.fullAddress.isNotEmpty) {
-      // ✅ FIXED: Use full address instead of display name to prevent autocomplete suggestions
-      controller.text = address.fullAddress;
-      onAddressSelected(address.fullAddress);
-    }
   }
 
   Future<void> _useCurrentLocation(bool isStart, {int? stopIndex}) async {
@@ -1102,6 +1007,96 @@ Widget _buildCustomAddressButton(
           _isOptimizing = false;
         });
       }
+    }
+  }
+
+  /// Helper method for saved address buttons (Home/Work)
+  Widget _buildSavedAddressButton(
+    SavedAddressType type,
+    IconData iconData,
+    Color color,
+    TextEditingController controller,
+    Function(String) onAddressSelected,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        _selectSavedAddress(type, controller, onAddressSelected);
+      },
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: color.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          iconData,
+          color: color,
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  /// Helper method for custom address buttons (icon only)
+  Widget _buildCustomAddressButton(
+    SavedAddress customAddress,
+    TextEditingController controller,
+    Function(String) onAddressSelected,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        // Use the custom address directly
+        controller.text = customAddress.fullAddress;
+        onAddressSelected(customAddress.fullAddress);
+      },
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: const Color(0xFF7B1FA2).withOpacity(0.1),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: const Color(0xFF7B1FA2).withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: const Icon(
+          Icons.place,
+          color: Color(0xFF7B1FA2),
+          size: 18,
+        ),
+      ),
+    );
+  }
+
+  /// Select a saved address by type
+  void _selectSavedAddress(
+    SavedAddressType type,
+    TextEditingController controller,
+    Function(String) onAddressSelected,
+  ) {
+    final address = _savedAddresses.firstWhere(
+      (addr) => addr.addressType == type,
+      orElse: () => SavedAddress(
+        id: '',
+        label: '',
+        fullAddress: '',
+        addressType: type,
+        createdDate: DateTime.now(),
+        displayName: '',
+      ),
+    );
+
+    if (address.id.isNotEmpty) {
+      controller.text = address.fullAddress;
+      onAddressSelected(address.fullAddress);
     }
   }
 }

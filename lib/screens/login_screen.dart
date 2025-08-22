@@ -10,12 +10,14 @@
 //
 // 📍 PLACEMENT: Replace the existing lib/screens/login_screen.dart file
 
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/haptic_feedback_service.dart';
+import '../widgets/biometric_setup_modal.dart';
 import 'route_input_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -470,8 +472,9 @@ class _LoginScreenState extends State<LoginScreen>
             builder: (context, authProvider, child) {
               return Column(
                 children: [
-                  // 🆕 ENHANCED: Apple Sign In Button with gradient
-                  SizedBox(
+                  // 🆕 ENHANCED: Apple Sign In Button with gradient (iOS only)
+                  if (Platform.isIOS) ...[
+                    SizedBox(
                     width: double.infinity,
                     height: 56,
                     child: Container(
@@ -541,7 +544,8 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ],
                   
                   // 🆕 ENHANCED: Google Sign In Button with gradient
                   SizedBox(
