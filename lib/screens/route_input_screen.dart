@@ -6,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -16,6 +17,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/error_states.dart' as error_ui;
 import '../services/error_tracking_service.dart' as tracking;
 import '../services/user_feedback_service.dart';
+import '../services/haptic_feedback_service.dart';
+import '../services/smart_suggestions_service.dart';
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
@@ -128,10 +131,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     _loadDefaultSettings(); // Just load once on startup
 
     
-    // Initialize usage tracking
+    // Initialize usage tracking and smart suggestions
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<UsageTrackingService>().initialize();
+        smartSuggestions.initialize();
       }
     });
   }
@@ -391,7 +395,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   Widget _buildAddStopButton() {
     return GestureDetector(
       onTap: () {
-        HapticFeedback.lightImpact();
+        hapticFeedback.buttonTap();
         _addStop();
       },
       child: Container(
@@ -929,8 +933,8 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     });
 
 
-    // Success haptic feedback
-    HapticFeedback.mediumImpact();
+    // Success haptic feedback for route optimization
+    hapticFeedback.importantAction();
 
     try {
       // ALL YOUR EXISTING OPTIMIZATION LOGIC STAYS THE SAME
@@ -965,6 +969,9 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       );
 
       await usageService.incrementUsage();
+
+      // Record smart suggestions for future use
+      await _recordAddressUsage(originalInputs);
 
       if (mounted) {
         Navigator.push(
@@ -1108,6 +1115,41 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     if (address.id.isNotEmpty) {
       controller.text = address.fullAddress;
       onAddressSelected(address.fullAddress);
+    }
+  }
+
+  /// Record address usage for smart suggestions
+  Future<void> _recordAddressUsage(OriginalRouteInputs inputs) async {
+    try {
+      // Record start location
+      if (inputs.startLocationDisplayName.isNotEmpty) {
+        await smartSuggestions.recordAddressUsage(
+          inputs.startLocation,
+          inputs.startLocationDisplayName,
+        );
+      }
+      
+      // Record end location
+      if (inputs.endLocationDisplayName.isNotEmpty) {
+        await smartSuggestions.recordAddressUsage(
+          inputs.endLocation,
+          inputs.endLocationDisplayName,
+        );
+      }
+      
+      // Record all stops
+      for (int i = 0; i < inputs.stops.length && i < inputs.stopDisplayNames.length; i++) {
+        if (inputs.stopDisplayNames[i].isNotEmpty) {
+          await smartSuggestions.recordAddressUsage(
+            inputs.stops[i],
+            inputs.stopDisplayNames[i],
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error recording address usage: $e');
+      }
     }
   }
 }

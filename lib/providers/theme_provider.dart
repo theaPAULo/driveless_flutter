@@ -100,6 +100,12 @@ class AppThemes {
   static const Color trafficOrange = Color(0xFFFF9500);    // iOS system orange
   static const Color errorRed = Color(0xFFFF3B30);         // iOS system red
   
+  // Enhanced dark mode colors for better contrast and readability
+  static const Color darkCardColor = Color(0xFF2C2C2E);    // Better contrast than 1C1C1E
+  static const Color darkSeparator = Color(0xFF3A3A3C);    // Separators and borders
+  static const Color darkSecondary = Color(0xFF8E8E93);    // Secondary text
+  static const Color darkTertiary = Color(0x4D8E8E93);     // Tertiary/placeholder text
+  
   /// EXACT iOS gradient for splash/welcome screens
   static const LinearGradient iOSGradient = LinearGradient(
     begin: Alignment.topLeft,
@@ -221,16 +227,18 @@ class AppThemes {
       useMaterial3: true,
       brightness: Brightness.dark,
       
-      // Color scheme - matches iOS app exactly
+      // Color scheme - enhanced contrast for better readability
       colorScheme: ColorScheme.fromSeed(
         seedColor: systemGreen,
         brightness: Brightness.dark,
         primary: systemGreen,
         secondary: secondaryGreen,
-        surface: const Color(0xFF1C1C1E), // iOS dark card color
-        background: Colors.black, // Pure black like iOS app
-        onBackground: Colors.white,
+        surface: darkCardColor, // Better contrast than pure black
         onSurface: Colors.white,
+        onSurfaceVariant: darkSecondary,
+        outline: darkSeparator,
+        onSecondary: darkSecondary,
+        tertiary: darkTertiary,
       ),
       
       // Pure black scaffold background (matches iOS app)
@@ -245,12 +253,16 @@ class AppThemes {
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
       
-      // Card theme - iOS dark gray
-      cardTheme: const CardThemeData(
-        color: Color(0xFF1C1C1E), // iOS dark card color
+      // Card theme - enhanced dark mode
+      cardTheme: CardThemeData(
+        color: darkCardColor, // Better contrast
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          side: BorderSide(
+            color: darkSeparator.withValues(alpha: 0.3),
+            width: 0.5,
+          ),
         ),
       ),
       

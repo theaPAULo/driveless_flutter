@@ -14,6 +14,7 @@ import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/biometric_setup_modal.dart';
+import '../services/haptic_feedback_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -511,7 +512,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Switch(
             value: value, // PRESERVED: Same value logic
-            onChanged: onChanged, // PRESERVED: Same change logic
+            onChanged: (newValue) {
+              hapticFeedback.toggle(); // Add haptic feedback for toggles
+              onChanged(newValue);
+            },
             // CHANGED: Use proper brand green instead of off-brand
             activeColor: const Color(0xFF34C759),
           ),
