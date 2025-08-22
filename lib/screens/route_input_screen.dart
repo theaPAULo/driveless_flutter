@@ -928,11 +928,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       _isOptimizing = true;
     });
 
-    // Show loading overlay with context
-    UserFeedbackService.showLoading(
-      context,
-      'Optimizing your route...\nFinding the best path through your stops',
-    );
 
     // Success haptic feedback
     HapticFeedback.mediumImpact();
@@ -971,14 +966,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
       await usageService.incrementUsage();
 
-      // Show success feedback with route details
       if (mounted) {
-        UserFeedbackService.showSuccess(
-          context,
-          'Route optimized! Found the best path through ${routeResult.optimizedStops.length} stops.',
-          actionLabel: 'View Results',
-        );
-        
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1026,9 +1014,6 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       
     } finally {
       if (mounted) {
-        // Hide loading overlay
-        UserFeedbackService.hideLoading(context);
-        
         setState(() {
           _isOptimizing = false;
         });
