@@ -12,11 +12,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../services/biometric_auth_service.dart';
+import '../services/error_tracking_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final BiometricAuthService _biometricAuth = BiometricAuthService();
+  final ErrorTrackingService _errorTracker = ErrorTrackingService();
 
   User? _user;
   bool _isLoading = false;
@@ -90,6 +92,20 @@ class AuthProvider with ChangeNotifier {
       
     } catch (e) {
       _errorMessage = 'Google Sign-In failed: ${e.toString()}';
+      
+      // Track Google Sign-In errors
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Google Sign-In failed: ${e.toString()}',
+        stackTrace: StackTrace.current,
+        severity: ErrorSeverity.medium,
+        location: 'auth_provider.signInWithGoogle',
+        additionalData: {
+          'platform': Platform.operatingSystem,
+          'errorType': e.runtimeType.toString(),
+        },
+      );
+      
       debugPrint('❌ Google Sign-In error: $e');
     } finally {
       _setLoading(false);
@@ -149,6 +165,21 @@ class AuthProvider with ChangeNotifier {
       
     } catch (e) {
       _errorMessage = 'Apple Sign-In failed: ${e.toString()}';
+      
+      // Track Apple Sign-In errors
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Apple Sign-In failed: ${e.toString()}',
+        stackTrace: StackTrace.current,
+        severity: ErrorSeverity.medium,
+        location: 'auth_provider.signInWithApple',
+        additionalData: {
+          'platform': Platform.operatingSystem,
+          'errorType': e.runtimeType.toString(),
+          'isIOS': Platform.isIOS,
+        },
+      );
+      
       debugPrint('❌ Apple Sign-In error: $e');
     } finally {
       _setLoading(false);
@@ -171,6 +202,20 @@ class AuthProvider with ChangeNotifier {
       
     } catch (e) {
       _errorMessage = 'Sign-out failed: ${e.toString()}';
+      
+      // Track sign-out errors
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Sign-out failed: ${e.toString()}',
+        stackTrace: StackTrace.current,
+        severity: ErrorSeverity.low,
+        location: 'auth_provider.signOut',
+        additionalData: {
+          'platform': Platform.operatingSystem,
+          'errorType': e.runtimeType.toString(),
+        },
+      );
+      
       debugPrint('❌ Sign-out error: $e');
     } finally {
       _setLoading(false);

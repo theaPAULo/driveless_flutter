@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/constants.dart';
 import '../services/haptic_feedback_service.dart';
+import '../services/error_tracking_service.dart';
 
 /// Enum for different biometric authentication types
 enum BiometricType {
@@ -43,6 +44,7 @@ class BiometricAuthService extends ChangeNotifier {
 
   // Local authentication instance
   final local_auth.LocalAuthentication _localAuth = local_auth.LocalAuthentication();
+  final ErrorTrackingService _errorTracker = ErrorTrackingService();
   
   // State variables
   bool _isAvailable = false;
@@ -95,6 +97,20 @@ class BiometricAuthService extends ChangeNotifier {
       
     } catch (e) {
       _setError('Failed to initialize biometric authentication: ${e.toString()}');
+      
+      // Track biometric initialization error
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Biometric initialization failed: ${e.toString()}',
+        stackTrace: StackTrace.current,
+        severity: ErrorSeverity.medium,
+        location: 'biometric_auth_service.initialize',
+        additionalData: {
+          'devicePlatform': defaultTargetPlatform.toString(),
+          'isAvailable': _isAvailable,
+        },
+      );
+      
       if (EnvironmentConfig.logApiCalls) {
         print('❌ Biometric initialization error: $e');
       }
@@ -137,13 +153,14 @@ class BiometricAuthService extends ChangeNotifier {
     String reason = 'Please authenticate to access DriveLess',
     bool useErrorDialogs = true,
     bool stickyAuth = true,
+    bool forSetup = false, // Allow authentication during setup
   }) async {
     try {
       if (!_isAvailable) {
         return BiometricAuthResult.notAvailable;
       }
 
-      if (!_isEnabled) {
+      if (!_isEnabled && !forSetup) {
         if (EnvironmentConfig.logApiCalls) {
           print('⚠️ Biometric authentication is disabled by user');
         }
@@ -195,6 +212,21 @@ class BiometricAuthService extends ChangeNotifier {
       _setLoading(false);
       await hapticFeedback.error();
       
+      // Track biometric platform errors
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Biometric platform error: ${e.code} - ${e.message}',
+        stackTrace: StackTrace.current,
+        severity: e.code == 'UserCancel' ? ErrorSeverity.low : ErrorSeverity.medium,
+        location: 'biometric_auth_service.authenticate',
+        additionalData: {
+          'errorCode': e.code,
+          'platform': defaultTargetPlatform.toString(),
+          'forSetup': forSetup,
+          'isEnabled': _isEnabled,
+        },
+      );
+      
       if (EnvironmentConfig.logApiCalls) {
         print('❌ Biometric authentication error: ${e.code} - ${e.message}');
       }
@@ -215,6 +247,21 @@ class BiometricAuthService extends ChangeNotifier {
       _setLoading(false);
       await hapticFeedback.error();
       
+      // Track unexpected biometric errors
+      _errorTracker.trackError(
+        errorType: ErrorType.authentication,
+        errorMessage: 'Unexpected biometric error: ${e.toString()}',
+        stackTrace: StackTrace.current,
+        severity: ErrorSeverity.high,
+        location: 'biometric_auth_service.authenticate',
+        additionalData: {
+          'platform': defaultTargetPlatform.toString(),
+          'forSetup': forSetup,
+          'isEnabled': _isEnabled,
+          'isAvailable': _isAvailable,
+        },
+      );
+      
       _setError('Unexpected biometric authentication error: ${e.toString()}');
       if (EnvironmentConfig.logApiCalls) {
         print('❌ Unexpected biometric error: $e');
@@ -229,9 +276,10 @@ class BiometricAuthService extends ChangeNotifier {
     if (!_isAvailable) return false;
 
     try {
-      // First, authenticate to confirm user intent
+      // First, authenticate to confirm user intent (with setup bypass)
       final authResult = await authenticate(
         reason: 'Authenticate to enable biometric login for DriveLess',
+        forSetup: true,
       );
 
       if (authResult == BiometricAuthResult.success) {

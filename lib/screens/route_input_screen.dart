@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/error_states.dart' as error_ui;
 import '../services/error_tracking_service.dart' as tracking;
+import '../services/user_feedback_service.dart';
 
 import '../models/route_models.dart';
 import '../services/route_calculator_service.dart';
@@ -927,6 +928,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
       _isOptimizing = true;
     });
 
+    // Show loading overlay with context
+    UserFeedbackService.showLoading(
+      context,
+      'Optimizing your route...\nFinding the best path through your stops',
+    );
+
     // Success haptic feedback
     HapticFeedback.mediumImpact();
 
@@ -964,7 +971,14 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
 
       await usageService.incrementUsage();
 
+      // Show success feedback with route details
       if (mounted) {
+        UserFeedbackService.showSuccess(
+          context,
+          'Route optimized! Found the best path through ${routeResult.optimizedStops.length} stops.',
+          actionLabel: 'View Results',
+        );
+        
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -999,10 +1013,22 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         errorMessage = 'Service temporarily unavailable. Please try again in a few minutes.';
       }
       
+      // Enhanced error feedback with retry option
+      if (mounted) {
+        UserFeedbackService.showError(
+          context,
+          errorMessage,
+          onRetry: () => _handleEnhancedOptimizeRoute(),
+        );
+      }
+      
       _showError(errorType, errorMessage);
       
     } finally {
       if (mounted) {
+        // Hide loading overlay
+        UserFeedbackService.hideLoading(context);
+        
         setState(() {
           _isOptimizing = false;
         });
