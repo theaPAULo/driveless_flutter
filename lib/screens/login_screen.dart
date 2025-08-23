@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/haptic_feedback_service.dart';
+import '../widgets/brand_sign_in_buttons.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -470,137 +471,19 @@ class _LoginScreenState extends State<LoginScreen>
             builder: (context, authProvider, child) {
               return Column(
                 children: [
-                  // 🆕 ENHANCED: Apple Sign In Button with gradient (iOS only)
+                  // Apple Sign-In Button (iOS only) with authentic branding
                   if (Platform.isIOS) ...[
-                    SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white,
-                            Color(0xFFF5F5F5),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.8),
-                            blurRadius: 8,
-                            offset: const Offset(0, -2),
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: authProvider.isLoading
-                            ? null
-                            : () => _handleAppleSignIn(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.black,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        child: authProvider.isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.black54,
-                                  ),
-                                ),
-                              )
-                            : const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.apple, size: 24),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Continue with Apple',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
+                    AppleSignInButton(
+                      onPressed: () => _handleAppleSignIn(context),
+                      isLoading: authProvider.isLoading,
                     ),
-                  ),
-                  
                     const SizedBox(height: 16),
                   ],
                   
-                  // 🆕 ENHANCED: Google Sign In Button with gradient
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Colors.white.withOpacity(0.1),
-                            Colors.white.withOpacity(0.05),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.6),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: OutlinedButton(
-                        onPressed: authProvider.isLoading
-                            ? null
-                            : () => _handleGoogleSignIn(context),
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: Colors.white,
-                          side: BorderSide.none,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.g_mobiledata, size: 28),
-                            SizedBox(width: 8),
-                            Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  // Google Sign-In Button with authentic branding
+                  GoogleSignInButton(
+                    onPressed: () => _handleGoogleSignIn(context),
+                    isLoading: authProvider.isLoading,
                   ),
                 ],
               );

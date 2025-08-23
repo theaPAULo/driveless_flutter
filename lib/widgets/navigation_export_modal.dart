@@ -124,22 +124,43 @@ class NavigationExportModal extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF2C2C2E), // Slightly lighter gray
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF2C2C2E), // Dark base
+                    const Color(0xFF1C1C1E), // Darker gradient
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.grey[700]!,
-                  width: 0.5,
+                  color: _getAppColor(app).withOpacity(0.3),
+                  width: 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: _getAppColor(app).withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                  // App Icon
+                  // App Icon with brand gradient
                   Container(
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: _getAppColor(app),
+                      gradient: _getAppGradient(app),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _getAppColor(app).withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Icon(
                       _getAppIcon(app),
@@ -289,15 +310,39 @@ class NavigationExportModal extends StatelessWidget {
     }
   }
 
-  /// Get app color
+  /// Get authentic brand colors for each navigation app
   Color _getAppColor(NavigationApp app) {
     switch (app) {
       case NavigationApp.googleMaps:
-        return const Color(0xFF4285F4); // Google Blue
+        return const Color(0xFF4285F4); // Authentic Google Blue
       case NavigationApp.waze:
-        return const Color(0xFF33CCFF); // Waze Blue
+        return const Color(0xFF00D4FF); // Authentic Waze Cyan  
       case NavigationApp.appleMaps:
-        return const Color(0xFF007AFF); // Apple Blue
+        return const Color(0xFF007AFF); // Authentic Apple Blue
+    }
+  }
+
+  /// Get brand-specific gradient colors for enhanced styling
+  LinearGradient _getAppGradient(NavigationApp app) {
+    switch (app) {
+      case NavigationApp.googleMaps:
+        return const LinearGradient(
+          colors: [Color(0xFF4285F4), Color(0xFF34A853)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+      case NavigationApp.waze:
+        return const LinearGradient(
+          colors: [Color(0xFF00D4FF), Color(0xFF0099CC)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+      case NavigationApp.appleMaps:
+        return const LinearGradient(
+          colors: [Color(0xFF007AFF), Color(0xFF005BB8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
     }
   }
 
