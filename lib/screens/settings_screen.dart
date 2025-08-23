@@ -1026,7 +1026,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       
       // Delete saved addresses using the service
       final savedAddressService = SavedAddressService();
-      final addresses = await savedAddressService.getSavedAddresses();
+      // First ensure addresses are loaded
+      await savedAddressService.initialize();
+      final addresses = savedAddressService.savedAddresses;
       for (final address in addresses) {
         await savedAddressService.deleteAddress(address.id);
       }
