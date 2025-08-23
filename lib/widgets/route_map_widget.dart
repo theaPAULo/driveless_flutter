@@ -205,14 +205,14 @@ class _RouteMapWidgetState extends State<RouteMapWidget> {
       final isFirst = i == 0;
       final isLast = i == widget.routeResult.optimizedStops.length - 1;
       
-      // Determine marker color based on position
+      // Determine marker color based on position - matching earthy theme from Route List
       Color markerColor;
       if (isFirst) {
-        markerColor = const Color(0xFF34C759); // Green for start
+        markerColor = const Color.fromRGBO(51, 102, 51, 1.0); // Primary green for start
       } else if (isLast) {
-        markerColor = const Color(0xFFFF3B30); // Red for end
+        markerColor = const Color.fromRGBO(102, 77, 51, 1.0); // Rich brown for end
       } else {
-        markerColor = const Color(0xFF007AFF); // Blue for stops
+        markerColor = const Color.fromRGBO(128, 153, 102, 1.0); // Olive green for stops
       }
       
       // Create custom marker icon with number

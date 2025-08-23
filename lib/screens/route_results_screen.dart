@@ -414,9 +414,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
       children: [
         Icon(
           icon,
-          color: themeProvider.currentTheme == AppThemeMode.dark 
-            ? Colors.white 
-            : Colors.grey[600],
+          color: _getStatIconColor(icon),
           size: 28,
         ),
         const SizedBox(height: 8),
@@ -440,6 +438,20 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
         ),
       ],
     );
+  }
+
+  // Get earthy themed colors for summary stat icons
+  Color _getStatIconColor(IconData icon) {
+    switch (icon) {
+      case Icons.straighten:
+        return const Color.fromRGBO(51, 102, 51, 1.0); // Primary green for distance
+      case Icons.access_time:
+        return const Color.fromRGBO(128, 153, 102, 1.0); // Olive green for time
+      case Icons.location_on:
+        return const Color.fromRGBO(102, 77, 51, 1.0); // Rich brown for stops
+      default:
+        return const Color.fromRGBO(51, 102, 51, 1.0); // Default to primary green
+    }
   }
 
   Widget _buildRouteMapSection(ThemeProvider themeProvider) {

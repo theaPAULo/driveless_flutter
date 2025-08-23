@@ -15,6 +15,8 @@ import '../providers/theme_provider.dart';
 import '../widgets/empty_states.dart'; // NEW: Enhanced empty state widget
 import 'route_results_screen.dart';
 import 'route_history_screen.dart'; // NEW: For navigation to route history
+import 'route_input_screen.dart';
+import 'main_tab_view.dart';
 
 class FavoriteRoutesScreen extends StatefulWidget {
   const FavoriteRoutesScreen({super.key});
@@ -124,20 +126,15 @@ class _FavoriteRoutesScreenState extends State<FavoriteRoutesScreen> {
       // ✨ NEW: Use Enhanced Empty State instead of basic empty state
       return EnhancedEmptyState(
         type: EmptyStateType.favoriteRoutes,
+        actionButtonText: 'Plan New Route',
         onActionPressed: () {
-          // Navigate to Route History where users can favorite routes
-          Navigator.of(context).push(
+          // Navigate directly to main tab view with Search tab selected
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => const RouteHistoryScreen(),
+              builder: (context) => const MainTabView(),
             ),
+            (route) => false, // Remove all previous routes
           );
-        },
-        // Optional: Add secondary action to go plan new route
-        showSecondaryAction: true,
-        secondaryActionText: 'Plan New Route',
-        onSecondaryActionPressed: () {
-          // Navigate back to main route input screen
-          Navigator.of(context).popUntil((route) => route.isFirst);
         },
       );
     }
@@ -150,17 +147,8 @@ class _FavoriteRoutesScreenState extends State<FavoriteRoutesScreen> {
     );
   }
 
-  // MARK: - PRESERVED Stats Header
+  // MARK: - Stats Header (Simplified)
   Widget _buildStatsHeader(ThemeProvider themeProvider) {
-    final totalMiles = _favoriteRoutes.fold<double>(
-      0.0, 
-      (sum, route) => sum + _parseDistanceFromString(route.routeResult.totalDistance),
-    );
-    
-    final avgMiles = _favoriteRoutes.isNotEmpty 
-      ? totalMiles / _favoriteRoutes.length 
-      : 0.0;
-
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(20),
@@ -171,92 +159,29 @@ class _FavoriteRoutesScreenState extends State<FavoriteRoutesScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${_favoriteRoutes.length}',
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+          Column(
+            children: [
+              Text(
+                '${_favoriteRoutes.length}',
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Favorite\nRoutes',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Favorite Routes',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: themeProvider.currentTheme == AppThemeMode.dark 
-              ? Colors.grey[600] 
-              : Colors.grey[300],
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${totalMiles.toStringAsFixed(1)}',
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Total\nMiles',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: themeProvider.currentTheme == AppThemeMode.dark 
-              ? Colors.grey[600] 
-              : Colors.grey[300],
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  '${avgMiles.toStringAsFixed(1)}',
-                  style: const TextStyle(
-                    color: Colors.red,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Avg Miles\nPer Route',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

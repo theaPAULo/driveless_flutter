@@ -14,6 +14,8 @@ import '../utils/constants.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/empty_states.dart'; // NEW: Enhanced empty state widget
 import 'route_results_screen.dart';
+import 'route_input_screen.dart';
+import 'main_tab_view.dart';
 
 class RouteHistoryScreen extends StatefulWidget {
   const RouteHistoryScreen({super.key});
@@ -169,8 +171,13 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
       return EnhancedEmptyState(
         type: EmptyStateType.routeHistory,
         onActionPressed: () {
-          // Navigate back to route input screen (main tab)
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          // Navigate directly to main tab view with Search tab selected
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => const MainTabView(),
+            ),
+            (route) => false, // Remove all previous routes
+          );
         },
       );
     }
@@ -226,11 +233,6 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
       0.0, 
       (sum, route) => sum + _parseDistanceFromString(route.routeResult.totalDistance),
     );
-    
-    final mostRecentRoute = _savedRoutes.isNotEmpty ? _savedRoutes.first : null;
-    final daysSinceLastRoute = mostRecentRoute != null 
-      ? DateTime.now().difference(mostRecentRoute.savedAt).inDays 
-      : 0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -288,39 +290,6 @@ class _RouteHistoryScreenState extends State<RouteHistoryScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Miles\nOptimized',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 12,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 40,
-            color: themeProvider.currentTheme == AppThemeMode.dark 
-              ? Colors.grey[600] 
-              : Colors.grey[300],
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  daysSinceLastRoute == 0 
-                    ? 'Today' 
-                    : '${daysSinceLastRoute}d ago',
-                  style: const TextStyle(
-                    color: Color(0xFF34C759),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Most Recent',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),

@@ -296,13 +296,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // MARK: - Route Input Section
   Widget _buildRouteInputSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardTheme.color ?? 
-                     (isDark ? const Color(0xFF1C1C1E) : Colors.white);
     
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: Theme.of(context).cardColor, // Use consistent card color from theme
         borderRadius: BorderRadius.circular(16),
         boxShadow: isDark ? [] : [
           BoxShadow(
@@ -433,13 +431,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
   // MARK: - Settings Section
   Widget _buildSettingsSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = Theme.of(context).cardTheme.color ?? 
-                     (isDark ? const Color(0xFF1C1C1E) : Colors.white);
     
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: cardColor,
+        color: Theme.of(context).cardColor, // Use consistent card color from theme
         borderRadius: BorderRadius.circular(16),
         boxShadow: isDark ? [] : [
           BoxShadow(

@@ -194,6 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _saveSettings(); // PRESERVED: Same save logic
               },
               themeProvider,
+              icon: '📳',
             ),
           ], themeProvider),
 
@@ -217,6 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _saveSettings(); // PRESERVED: Same save logic
               },
               themeProvider,
+              icon: '🔄',
             ),
             // PRESERVED: Divider
             Divider(
@@ -236,6 +238,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _saveSettings(); // PRESERVED: Same save logic
               },
               themeProvider,
+              icon: '🚗',
             ),
           ], themeProvider),
 
@@ -256,6 +259,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 }
               },
               themeProvider,
+              icon: '💾',
             ),
           ], themeProvider),
 
@@ -357,30 +361,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Theme',
-            style: TextStyle(
-              // CHANGED: Theme-aware text color
-              color: Theme.of(context).textTheme.bodyLarge?.color,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Choose your preferred appearance',
-            style: TextStyle(
-              // CHANGED: Theme-aware secondary text color
-              color: themeProvider.currentTheme == AppThemeMode.dark 
-                ? Colors.grey[400] 
-                : Colors.grey[600],
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 20),
-          
-          // PRESERVED: Theme buttons in a row structure
-          Row(
+                Text(
+                  'Theme',
+                  style: TextStyle(
+                    // CHANGED: Theme-aware text color
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose your preferred appearance',
+                  style: TextStyle(
+                    // CHANGED: Theme-aware secondary text color
+                    color: themeProvider.currentTheme == AppThemeMode.dark 
+                      ? Colors.grey[400] 
+                      : Colors.grey[600],
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // PRESERVED: Theme buttons in a row structure
+                Row(
             children: [
               Expanded(
                 child: _buildThemeButton(
@@ -411,8 +415,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   themeProvider: themeProvider,
                 ),
               ),
-            ],
-          ),
+                ],
+                ),
         ],
       ),
     );
@@ -429,13 +433,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return GestureDetector(
       onTap: onTap, // PRESERVED: Same tap logic
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
           // CHANGED: Better color logic - use brand green when selected
           color: isSelected 
             ? const Color(0xFF34C759) 
             : Colors.transparent,
-          borderRadius: BorderRadius.circular(50),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             // CHANGED: Better border color logic
             color: isSelected 
