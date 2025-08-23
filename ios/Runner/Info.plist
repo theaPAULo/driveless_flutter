@@ -61,5 +61,11 @@
 	<!-- Biometric Authentication Permissions -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to quickly and securely access DriveLess</string>
+	
+	<!-- Location Permissions - Required by Apple for App Store -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DriveLess needs your location to optimize routes between your destinations and provide accurate driving directions</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DriveLess needs your location to optimize routes between your destinations and provide accurate driving directions</string>
 </dict>
 </plist>
