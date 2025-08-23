@@ -957,12 +957,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Clear smart suggestions
       await smartSuggestions.clearHistory();
       
-      // Clear saved addresses (via Firebase if user is authenticated)
+      // Clear all Firebase data (via Firebase if user is authenticated)
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Clear Firestore data
-        final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-        await userDoc.delete();
+        await _deleteAllFirebaseData(user.uid);
       }
 
       // Sign out user
@@ -1017,6 +1015,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (kDebugMode) {
         print('❌ Error deleting user data: $e');
       }
+    }
+  }
+
+  /// Comprehensively delete all Firebase data for a user
+  Future<void> _deleteAllFirebaseData(String userId) async {
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+    
+    try {
+      // Delete saved addresses subcollection
+      final savedAddressesQuery = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('saved_addresses')
+          .get();
+      
+      for (final doc in savedAddressesQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Delete saved routes subcollection
+      final savedRoutesQuery = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('saved_routes')
+          .get();
+      
+      for (final doc in savedRoutesQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Delete user preferences subcollection (if exists)
+      final userPreferencesQuery = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('preferences')
+          .get();
+      
+      for (final doc in userPreferencesQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Delete any other potential subcollections
+      final userAnalyticsQuery = await firestore
+          .collection('users')
+          .doc(userId)
+          .collection('analytics')
+          .get();
+      
+      for (final doc in userAnalyticsQuery.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Finally, delete the main user document
+      final userDoc = firestore.collection('users').doc(userId);
+      batch.delete(userDoc);
+      
+      // Commit all deletions atomically
+      await batch.commit();
+      
+      if (kDebugMode) {
+        print('✅ Successfully deleted all Firebase data for user: $userId');
+      }
+      
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error deleting Firebase data: $e');
+      }
+      // Re-throw to be handled by calling method
+      rethrow;
     }
   }
 }
