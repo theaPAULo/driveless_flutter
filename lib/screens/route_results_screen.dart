@@ -540,13 +540,13 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
     String label;
     
     if (index == 0) {
-      circleColor = const Color(0xFF34C759);
+      circleColor = const Color.fromRGBO(51, 102, 51, 1.0); // Primary green from theme
       label = 'START';
     } else if (isLast) {
-      circleColor = Colors.red;
+      circleColor = const Color.fromRGBO(102, 77, 51, 1.0); // Rich brown from theme
       label = 'END';
     } else {
-      circleColor = const Color(0xFF007AFF);
+      circleColor = const Color.fromRGBO(128, 153, 102, 1.0); // Olive green from theme
       label = 'STOP';
     }
 
@@ -709,9 +709,15 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
             height: 50,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF34C759), Color(0xFF2E7D32)],
+                colors: [
+                  Color.fromRGBO(33, 69, 33, 1.0),   // Deep forest green
+                  Color.fromRGBO(51, 102, 51, 1.0),  // Primary green  
+                  Color.fromRGBO(128, 153, 102, 1.0), // Olive green
+                  Color.fromRGBO(102, 77, 51, 1.0),   // Rich brown
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
+                stops: [0.0, 0.33, 0.66, 1.0],
               ),
               borderRadius: BorderRadius.circular(25),
             ),
@@ -739,7 +745,7 @@ class _RouteResultsScreenState extends State<RouteResultsScreen> {
                   Icon(Icons.map, size: 20),
                   SizedBox(width: 8),
                   Text(
-                    'Google Maps',
+                    'Export Route',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

@@ -17,8 +17,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/haptic_feedback_service.dart';
-import '../widgets/biometric_setup_modal.dart';
-import 'route_input_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

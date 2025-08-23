@@ -7,8 +7,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -118,7 +116,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         _includeTraffic = prefs.getBool('default_traffic_consideration') ?? true;
       });
       
-      print('🔄 Settings reloaded - Round Trip: $_isRoundTrip, Traffic: $_includeTraffic');
+      // Settings loaded successfully
     } catch (e) {
       print('❌ Error loading settings: $e');
     }
@@ -727,7 +725,11 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
         borderRadius: BorderRadius.circular(16),
         gradient: hasValidInputs && !_isOptimizing
           ? const LinearGradient(
-              colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+              colors: [
+                Color.fromRGBO(33, 69, 33, 1.0),   // Deep forest green
+                Color.fromRGBO(51, 102, 51, 1.0),  // Primary green  
+                Color.fromRGBO(128, 153, 102, 1.0), // Olive green
+              ],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             )
@@ -738,7 +740,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             ),
         boxShadow: hasValidInputs && !_isOptimizing ? [
           BoxShadow(
-            color: const Color(0xFF2E7D32).withOpacity(0.3),
+            color: const Color.fromRGBO(33, 69, 33, 1.0).withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),

@@ -3,7 +3,6 @@
 // Data models for saved addresses system
 // Replicates iOS Core Data SavedAddress functionality using local storage
 
-import 'dart:convert';
 
 /// Enum for different types of saved addresses (matching iOS app)
 enum SavedAddressType {

@@ -6,15 +6,18 @@
 // ✅ FIXES: Off-brand green colors to match design system
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; // RESTORED: URL launcher
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../providers/theme_provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as app_auth;
 import '../utils/constants.dart';
-import '../widgets/biometric_setup_modal.dart';
 import '../services/haptic_feedback_service.dart';
+import '../services/smart_suggestions_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -287,6 +290,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ], themeProvider),
 
+          // PRIVACY & DATA Section - iOS App Store Compliance
+          _buildSectionHeader('PRIVACY & DATA', themeProvider),
+          _buildSettingsCard([
+            _buildNavigationSetting(
+              'Delete All Data',
+              'Permanently remove all your saved data',
+              Icons.delete_forever,
+              _showDeleteAllDataConfirmation,
+              themeProvider,
+              isDestructive: true,
+            ),
+          ], themeProvider),
+
           const SizedBox(height: 40),
 
           // RESTORED: Reset Button
@@ -530,8 +546,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String subtitle,
     IconData icon,
     VoidCallback onTap,
-    ThemeProvider themeProvider,
-  ) {
+    ThemeProvider themeProvider, {
+    bool isDestructive = false,
+  }) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -542,7 +559,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: const Color(0xFF34C759),
+                color: isDestructive ? const Color(0xFFFF3B30) : const Color(0xFF34C759),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
@@ -559,7 +576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      color: isDestructive ? const Color(0xFFFF3B30) : Theme.of(context).textTheme.bodyLarge?.color,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
@@ -760,7 +777,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// Build biometric authentication setting
   Widget _buildBiometricSetting(ThemeProvider themeProvider) {
-    return Consumer<AuthProvider>(
+    return Consumer<app_auth.AuthProvider>(
       builder: (context, authProvider, child) {
         final biometricAuth = authProvider.biometricAuth;
         final isAvailable = biometricAuth.isAvailable;
@@ -847,5 +864,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  /// Show confirmation dialog for deleting all user data (iOS compliance)
+  Future<void> _showDeleteAllDataConfirmation() async {
+    hapticFeedback.warning(); // Warning haptic for serious action
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.warning,
+                color: Color(0xFFFF3B30),
+                size: 24,
+              ),
+              SizedBox(width: 12),
+              Text(
+                'Delete All Data?',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'This will permanently delete all your saved data including:\n\n• Saved addresses\n• Route history\n• Smart suggestions\n• App preferences\n\nThis action cannot be undone.',
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF3B30),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Delete All Data',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteAllUserData();
+    }
+  }
+
+  /// Actually delete all user data
+  Future<void> _deleteAllUserData() async {
+    try {
+      hapticFeedback.majorAction(); // Heavy haptic for major action
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Delete all user data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      
+      // Clear smart suggestions
+      await smartSuggestions.clearHistory();
+      
+      // Clear saved addresses (via Firebase if user is authenticated)
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Clear Firestore data
+        final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        await userDoc.delete();
+      }
+
+      // Sign out user
+      await context.read<app_auth.AuthProvider>().signOut();
+
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        
+        // Show success feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text(
+                  'All data has been permanently deleted',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF34C759),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+        
+        // Navigate back to welcome/login screen
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      }
+      
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete data: ${e.toString()}'),
+            backgroundColor: const Color(0xFFFF3B30),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+      
+      if (kDebugMode) {
+        print('❌ Error deleting user data: $e');
+      }
+    }
   }
 }
