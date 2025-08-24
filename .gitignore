@@ -12,6 +12,13 @@
 .swiftpm/
 migrate_working_dir/
 
+# Build artifacts (prevent duplicates)
+ios/Podfile*.lock
+ios/Flutter/Generated*.xcconfig
+ios/Flutter/flutter_export_environment*.sh
+.flutter-plugins-dependencies*
+.vscode/
+
 # IntelliJ related
 *.iml
 *.ipr
