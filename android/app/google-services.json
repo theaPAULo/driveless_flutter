@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:149627945168:android:2775e0fa6c4ca8c538ded5",
         "android_client_info": {
-          "package_name": "com.example.driveless_flutter"
+          "package_name": "com.driveless.app"
         }
       },
       "oauth_client": [],

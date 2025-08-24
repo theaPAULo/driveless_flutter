@@ -519,7 +519,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  // PRESERVED: Event handlers (no changes)
+  // Event handlers (no changes)
   void _handleSignIn() async {
     try {
       await context.read<AuthProvider>().signInWithGoogle();

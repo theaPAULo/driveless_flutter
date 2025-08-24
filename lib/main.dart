@@ -258,15 +258,19 @@ class _DriveLessAppState extends State<DriveLessApp> {
                 ? InitialLoadingScreen(
                     onLoadingComplete: _onInitialLoadingComplete,
                   )
-                : Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
+                : Selector<AuthProvider, ({bool isLoading, bool isSignedIn})>(
+                    selector: (context, authProvider) => (
+                      isLoading: authProvider.isLoading,
+                      isSignedIn: authProvider.isSignedIn,
+                    ),
+                    builder: (context, authState, child) {
                       // Show splash screen while checking auth state
-                      if (authProvider.isLoading) {
+                      if (authState.isLoading) {
                         return const SplashScreen();
                       }
                       
                       // Show main app if authenticated, login screen if not
-                      return authProvider.isSignedIn 
+                      return authState.isSignedIn 
                         ? const MainTabView()
                         : const LoginScreen();
                     },
