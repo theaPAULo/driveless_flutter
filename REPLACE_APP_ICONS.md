@@ -129,11 +129,11 @@ If you have your logo ready as `driveless_logo_1024.png`:
 # 2. Extract downloaded files
 # 3. Run these commands:
 
-# Copy iOS icons (assuming extracted to ~/Downloads/AppIcon/)
-cp ~/Downloads/AppIcon/Assets.xcassets/AppIcon.appiconset/* ios/Runner/Assets.xcassets/AppIcon.appiconset/
+# Copy iOS icons (assuming extracted to ~/Downloads/AppsIcon/)
+cp ~/Downloads/AppIcons/Assets.xcassets/AppIcon.appiconset/* ios/Runner/Assets.xcassets/AppIcon.appiconset/
 
-# Copy Android icons (assuming extracted to ~/Downloads/AppIcon/)
-cp ~/Downloads/AppIcon/android/mipmap-*/ic_launcher.png android/app/src/main/res/mipmap-*/
+# Copy Android icons (assuming extracted to ~/Downloads/AppsIcon/)
+cp ~/Downloads/AppIcons/android/mipmap-*/ic_launcher.png android/app/src/main/res/mipmap-*/
 
 # Clean and rebuild
 flutter clean && flutter pub get
