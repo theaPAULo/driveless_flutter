@@ -10,10 +10,12 @@ import '../widgets/rotating_compass.dart'; // ✨ NEW: Import compass widget
 
 class InitialLoadingScreen extends StatefulWidget {
   final VoidCallback onLoadingComplete;
+  final double? contentOpacity; // NEW: Optional opacity for text content
   
   const InitialLoadingScreen({
     super.key,
     required this.onLoadingComplete,
+    this.contentOpacity,
   });
 
   @override
@@ -137,9 +139,11 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
           gradient: AppThemes.iOSGradient, // PRESERVED: Same gradient
         ),
         child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          child: Opacity(
+            opacity: widget.contentOpacity ?? 1.0, // Apply fade to all content
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
               // PRESERVED: Logo and Title Section (no changes)
               AnimatedBuilder(
                 animation: Listenable.merge([_scaleController, _fadeController]),
@@ -274,7 +278,8 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen>
                   );
                 },
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

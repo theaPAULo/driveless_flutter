@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     // Logo animations (preserved)
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
     _logoSlide = Tween<Offset>(
@@ -111,18 +111,18 @@ class _LoginScreenState extends State<LoginScreen>
 
   void _startEntryAnimations() async {
     await _backgroundController.forward();
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 50));
     
     // Start logo and content animations simultaneously
     _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 100));
     
     _contentController.forward();
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 50));
     
     // 🆕 NEW: Start feature icon animations with stagger
     _featureIconController.forward();
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 100));
     
     _buttonsController.forward();
   }

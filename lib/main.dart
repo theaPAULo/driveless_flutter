@@ -213,24 +213,23 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
   void initState() {
     super.initState();
     _transitionController = AnimationController(
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 400),
       vsync: this,
     );
     
+    // Keep scale at 1.0 (no scaling)
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.0,
+    ).animate(_transitionController);
+    
+    // Simple fade out effect
     _fadeAnimation = Tween<double>(
       begin: 1.0,
       end: 0.0,
     ).animate(CurvedAnimation(
       parent: _transitionController,
-      curve: Curves.easeInOut,
-    ));
-    
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _transitionController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeOut,
     ));
   }
 
@@ -293,19 +292,13 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
             darkTheme: AppThemes.darkTheme,
             themeMode: themeProvider.themeMode,
             
-            // ENHANCED: App routing with smooth scale + fade transition
+            // Simple fade transition for main app
             home: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
+              duration: const Duration(milliseconds: 300),
               transitionBuilder: (Widget child, Animation<double> animation) {
-                // Scale + Fade transition for incoming content
-                return Transform.scale(
-                  scale: Tween<double>(begin: 0.95, end: 1.0).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)
-                  ).value,
-                  child: FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  ),
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
                 );
               },
               child: _showInitialLoading
@@ -313,14 +306,9 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
                       key: const ValueKey('loading'),
                       animation: Listenable.merge([_fadeAnimation, _scaleAnimation]),
                       builder: (context, child) {
-                        return Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: Opacity(
-                            opacity: _fadeAnimation.value,
-                            child: InitialLoadingScreen(
-                              onLoadingComplete: _onInitialLoadingComplete,
-                            ),
-                          ),
+                        return InitialLoadingScreen(
+                          onLoadingComplete: _onInitialLoadingComplete,
+                          contentOpacity: _fadeAnimation.value,
                         );
                       },
                     )
