@@ -55,6 +55,7 @@ class AppleSignInButton extends StatelessWidget {
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Apple logo using system icon (closest approximation)
                     Icon(
@@ -62,14 +63,17 @@ class AppleSignInButton extends StatelessWidget {
                       size: 20,
                       color: Colors.white,
                     ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Continue with Apple',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                        letterSpacing: -0.3, // Apple's characteristic letter spacing
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        'Continue with Apple',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          letterSpacing: -0.3,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -135,17 +139,21 @@ class GoogleSignInButton extends StatelessWidget {
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Google "G" logo using custom widget
                     _GoogleLogo(),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Continue with Google',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF3C4043), // Google's authentic text color
-                        letterSpacing: 0.25,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF3C4043),
+                          letterSpacing: 0.25,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],

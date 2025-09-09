@@ -181,38 +181,43 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ✅ FIXED: Usage indicator in normal flow (scrolls with content)
-                Row(
-                  children: [
-                    Expanded(child: _buildHeader()),
-                    _buildCompactUsageIndicator(),
-                  ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header and usage indicator
+              Row(
+                children: [
+                  Expanded(child: _buildHeader()),
+                  _buildCompactUsageIndicator(),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Scrollable content area
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Route Input Section
+                      _buildRouteInputSection(),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Settings Section
+                      _buildSettingsSection(),
+                    ],
+                  ),
                 ),
-                
-                const SizedBox(height: 24),
-                
-                // Route Input Section
-                _buildRouteInputSection(),
-                
-                const SizedBox(height: 24),
-                
-                // Settings Section
-                _buildSettingsSection(),
-                
-                const SizedBox(height: 32),
-                
-                // Optimize Button
-                _buildEnhancedOptimizeButton(),
-                
-                const SizedBox(height: 20),
-              ],
-            ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Fixed optimize button at bottom
+              _buildEnhancedOptimizeButton(),
+            ],
           ),
         ),
       ),
@@ -298,7 +303,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor, // Use consistent card color from theme
         borderRadius: BorderRadius.circular(16),
@@ -336,7 +341,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
           for (int i = 0; i < _stopControllers.length; i++)
             Column(
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 _buildLocationInputWithSavedAddresses(
                   controller: _stopControllers[i],
                   icon: Icons.place,
@@ -358,12 +363,12 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
               ],
             ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
           // Add Stop button
           _buildAddStopButton(),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
           // End location with saved addresses ABOVE input
           _buildLocationInputWithSavedAddresses(
@@ -433,7 +438,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor, // Use consistent card color from theme
         borderRadius: BorderRadius.circular(16),
@@ -471,7 +476,7 @@ class _RouteInputScreenState extends State<RouteInputScreen> {
             },
           ),
           
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           
           // Traffic Toggle
           _buildToggleItem(

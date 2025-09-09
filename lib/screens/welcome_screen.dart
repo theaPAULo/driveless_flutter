@@ -14,6 +14,7 @@ import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/rotating_compass.dart'; // ✨ NEW: Import compass widget
 import 'route_input_screen.dart';
+import 'main_tab_view.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({Key? key}) : super(key: key);
@@ -30,6 +31,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   late AnimationController _textController;
   late AnimationController _featuresController;
   late AnimationController _buttonsController;
+  late AnimationController _exitController;
   
   // Logo animations (PRESERVED - no changes)
   late Animation<double> _logoScale;
@@ -48,6 +50,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   // Button animations (PRESERVED - no changes)
   late Animation<double> _buttonsOpacity;
   late Animation<Offset> _buttonsSlide;
+  
+  // Exit animation for smooth transition
+  late Animation<double> _exitOpacity;
+  late Animation<double> _exitScale;
+  late Animation<Offset> _exitSlide;
+  bool _isExiting = false;
 
   @override
   void initState() {
@@ -75,6 +83,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     
     _buttonsController = AnimationController(
       duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    
+    _exitController = AnimationController(
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
@@ -157,6 +170,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       parent: _buttonsController,
       curve: Curves.easeOutCubic,
     ));
+    
+    _exitOpacity = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _exitController,
+      curve: Curves.easeInQuint, // More dramatic easing
+    ));
+    
+    _exitScale = Tween<double>(
+      begin: 1.0,
+      end: 0.85,
+    ).animate(CurvedAnimation(
+      parent: _exitController,
+      curve: Curves.easeInBack,
+    ));
+    
+    _exitSlide = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(0, -0.1),
+    ).animate(CurvedAnimation(
+      parent: _exitController,
+      curve: Curves.easeInBack,
+    ));
   }
 
   void _startAnimationSequence() async {
@@ -185,19 +222,29 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _textController.dispose();
     _featuresController.dispose();
     _buttonsController.dispose();
+    _exitController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: AppThemes.iOSGradient, // PRESERVED: Same gradient
-        ),
-        child: SafeArea(
+      body: AnimatedBuilder(
+        animation: _exitController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _exitScale.value,
+            child: SlideTransition(
+              position: _exitSlide,
+              child: Opacity(
+                opacity: _exitOpacity.value,
+                child: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: AppThemes.iOSGradient, // PRESERVED: Same gradient
+              ),
+              child: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -361,6 +408,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
           ),
         ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -519,10 +571,19 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
   }
 
-  // Event handlers (no changes)
+  // Event handlers with smooth transitions
   void _handleSignIn() async {
     try {
+      // Add haptic feedback for better UX
+      HapticFeedback.lightImpact();
+      
+      // Start sign in process
       await context.read<AuthProvider>().signInWithGoogle();
+      
+      // If successful, navigate with smooth transition
+      if (mounted && context.read<AuthProvider>().isSignedIn) {
+        _navigateToMainApp();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -536,10 +597,85 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _handleContinueAsGuest() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => const RouteInputScreen(),
-      ),
-    );
+    // Add haptic feedback
+    HapticFeedback.lightImpact();
+    
+    // Navigate to main app with smooth fade transition
+    _navigateToMainApp();
+  }
+  
+  // Enhanced transition to main app with multiple effects
+  void _navigateToMainApp() async {
+    if (_isExiting) return; // Prevent multiple taps
+    
+    setState(() {
+      _isExiting = true;
+    });
+    
+    // Start exit animation
+    await _exitController.forward();
+    
+    // Navigate after exit animation completes
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const MainTabView(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // Complex transition with multiple effects
+            return AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) {
+                // Scale effect - starts small and grows
+                final scaleValue = Tween<double>(
+                  begin: 0.8,
+                  end: 1.0,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: const Interval(0.0, 0.8, curve: Curves.easeOutBack),
+                )).value;
+                
+                // Rotation effect - slight rotation for dynamism
+                final rotationValue = Tween<double>(
+                  begin: 0.05,
+                  end: 0.0,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+                )).value;
+                
+                // Slide effect - comes from slightly below
+                final slideValue = Tween<Offset>(
+                  begin: const Offset(0, 0.1),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(
+                  parent: animation,
+                  curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+                )).value;
+                
+                return Transform.scale(
+                  scale: scaleValue,
+                  child: Transform.rotate(
+                    angle: rotationValue,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: slideValue,
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: FadeTransition(
+                        opacity: animation,
+                        child: child,
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: child,
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 1000),
+          reverseTransitionDuration: const Duration(milliseconds: 600),
+        ),
+      );
+    }
   }
 }

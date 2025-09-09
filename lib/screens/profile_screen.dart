@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/usage_tracking_service.dart';
+import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import '../services/saved_address_service.dart';
 import '../services/route_storage_service.dart';
@@ -30,10 +31,13 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   final SavedAddressService _addressService = SavedAddressService();
+  final AuthService _authService = AuthService();
   
   // State for real stats (preserved)
   Map<String, dynamic> _routeStats = {};
   bool _isLoadingStats = true;
+  bool _isAdmin = false;
+  bool _isCheckingAdmin = true;
 
   @override
   bool get wantKeepAlive => false; // Don't keep alive to ensure fresh data
@@ -43,6 +47,7 @@ void initState() {
   super.initState();
   _addressService.initialize();
   _loadRouteStatistics();
+  _checkAdminStatus();
   
   // Add observer to detect when app becomes active
   WidgetsBinding.instance.addObserver(this);
@@ -83,6 +88,7 @@ void didChangeAppLifecycleState(AppLifecycleState state) {
 void _refreshStatsIfNeeded() {
   if (mounted && ModalRoute.of(context)?.isCurrent == true) {
     _loadRouteStatistics();
+    _checkAdminStatus();
   }
 }
 
@@ -112,6 +118,37 @@ Future<void> _loadRouteStatistics() async {
     }
     if (EnvironmentConfig.logApiCalls) {
       print('❌ Error loading route statistics: $e');
+    }
+  }
+}
+
+/// Check if current user is admin
+Future<void> _checkAdminStatus() async {
+  try {
+    if (EnvironmentConfig.logApiCalls) {
+      print('🔄 Checking admin status...');
+    }
+    
+    final isAdmin = await _authService.isUserAdmin();
+    if (mounted) {
+      setState(() {
+        _isAdmin = isAdmin;
+        _isCheckingAdmin = false;
+      });
+      
+      if (EnvironmentConfig.logApiCalls) {
+        print('✅ Admin check complete: ${isAdmin ? 'Admin user' : 'Regular user'}');
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        _isAdmin = false;
+        _isCheckingAdmin = false;
+      });
+    }
+    if (EnvironmentConfig.logApiCalls) {
+      print('❌ Error checking admin status: $e');
     }
   }
 }
@@ -479,24 +516,27 @@ Future<void> _loadRouteStatistics() async {
 
         const SizedBox(height: 20),
 
-        // Account Section (preserved)
+        // Account Section - Admin Dashboard only shows for admin users
         _buildMenuSection(
           title: 'Account',
           children: [
-            _buildMenuItem(
-              icon: Icons.admin_panel_settings,
-              iconColor: Colors.purple,
-              title: 'Admin Dashboard',
-              subtitle: 'App analytics and management',
-              onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-                );
-              },
-            ),
-            _buildMenuDivider(),
+            // Only show Admin Dashboard for admin users
+            if (_isAdmin && !_isCheckingAdmin) ...[
+              _buildMenuItem(
+                icon: Icons.admin_panel_settings,
+                iconColor: Colors.purple,
+                title: 'Admin Dashboard',
+                subtitle: 'App analytics and management',
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+                  );
+                },
+              ),
+              _buildMenuDivider(),
+            ],
             _buildMenuItem(
               icon: Icons.logout,
               iconColor: Colors.red,

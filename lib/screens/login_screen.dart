@@ -145,15 +145,16 @@ class _LoginScreenState extends State<LoginScreen>
           gradient: AppThemes.iOSGradient, // Using your existing gradient
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+            child: Column(
+              children: [
+                // Flexible content area
+                Expanded(
+                  child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 40),
                         
                         // MARK: - Logo Section (preserved with enhancements)
                         AnimatedBuilder(
@@ -172,8 +173,8 @@ class _LoginScreenState extends State<LoginScreen>
                                         return Transform.scale(
                                           scale: 1.0 + (0.05 * _featureIconController.value),
                                           child: Container(
-                                            width: 120,
-                                            height: 120,
+                                            width: 100,
+                                            height: 100,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
                                               color: Colors.white,
@@ -192,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             ),
                                             child: const Icon(
                                               Icons.navigation,
-                                              size: 50,
+                                              size: 40,
                                               color: AppThemes.primaryGreen,
                                             ),
                                           ),
@@ -200,14 +201,14 @@ class _LoginScreenState extends State<LoginScreen>
                                       },
                                     ),
                                     
-                                    const SizedBox(height: 24),
+                                    const SizedBox(height: 20),
                                     
                                     // App title with enhanced shadow
                                     const Text(
                                       'DriveLess',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 48,
+                                        fontSize: 42,
                                         fontWeight: FontWeight.bold,
                                         letterSpacing: 1.5,
                                         shadows: [
@@ -251,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen>
                           },
                         ),
                         
-                        const SizedBox(height: 50),
+                        const SizedBox(height: 32),
                         
                         // 🆕 ENHANCED: Feature Icons with micro-animations
                         AnimatedBuilder(
@@ -294,14 +295,13 @@ class _LoginScreenState extends State<LoginScreen>
                           },
                         ),
                         
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
                 ),
-              ),
-              
-              // MARK: - 🆕 ENHANCED: Sign In Card with gradients
+                
+                // MARK: - 🆕 ENHANCED: Sign In Card with gradients (fixed at bottom)
               AnimatedBuilder(
                 animation: _buttonsController,
                 builder: (context, child) {
@@ -314,9 +314,8 @@ class _LoginScreenState extends State<LoginScreen>
                   );
                 },
               ),
-              
-              const SizedBox(height: 24),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -427,7 +426,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildEnhancedSignInCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -464,7 +463,7 @@ class _LoginScreenState extends State<LoginScreen>
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           
           // Consumer for authentication state
           Consumer<AuthProvider>(
@@ -490,7 +489,7 @@ class _LoginScreenState extends State<LoginScreen>
             },
           ),
           
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           
           // Privacy notice (preserved)
           const Text(
