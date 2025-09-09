@@ -203,13 +203,44 @@ class DriveLessApp extends StatefulWidget {
   State<DriveLessApp> createState() => _DriveLessAppState();
 }
 
-class _DriveLessAppState extends State<DriveLessApp> {
+class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMixin {
   bool _showInitialLoading = true;
+  late AnimationController _transitionController;
+  late Animation<double> _fadeAnimation;
 
-  void _onInitialLoadingComplete() {
-    setState(() {
-      _showInitialLoading = false;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _transitionController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _transitionController,
+      curve: Curves.easeInCubic,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _transitionController.dispose();
+    super.dispose();
+  }
+
+  void _onInitialLoadingComplete() async {
+    // Start fade out animation
+    await _transitionController.forward();
+    
+    // Switch to main app content after fade completes
+    if (mounted) {
+      setState(() {
+        _showInitialLoading = false;
+      });
+    }
   }
 
   @override
@@ -253,28 +284,47 @@ class _DriveLessAppState extends State<DriveLessApp> {
             darkTheme: AppThemes.darkTheme,
             themeMode: themeProvider.themeMode,
             
-            // PRESERVED: App routing with initial loading screen
-            home: _showInitialLoading
-                ? InitialLoadingScreen(
-                    onLoadingComplete: _onInitialLoadingComplete,
-                  )
-                : Selector<AuthProvider, ({bool isLoading, bool isSignedIn})>(
-                    selector: (context, authProvider) => (
-                      isLoading: authProvider.isLoading,
-                      isSignedIn: authProvider.isSignedIn,
+            // ENHANCED: App routing with smooth transition from initial loading
+            home: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 600),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              child: _showInitialLoading
+                  ? AnimatedBuilder(
+                      key: const ValueKey('loading'),
+                      animation: _fadeAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _fadeAnimation.value,
+                          child: InitialLoadingScreen(
+                            onLoadingComplete: _onInitialLoadingComplete,
+                          ),
+                        );
+                      },
+                    )
+                  : Selector<AuthProvider, ({bool isLoading, bool isSignedIn})>(
+                      key: const ValueKey('main'),
+                      selector: (context, authProvider) => (
+                        isLoading: authProvider.isLoading,
+                        isSignedIn: authProvider.isSignedIn,
+                      ),
+                      builder: (context, authState, child) {
+                        // Show splash screen while checking auth state
+                        if (authState.isLoading) {
+                          return const SplashScreen();
+                        }
+                        
+                        // Show main app if authenticated, login screen if not
+                        return authState.isSignedIn 
+                          ? const MainTabView()
+                          : const LoginScreen();
+                      },
                     ),
-                    builder: (context, authState, child) {
-                      // Show splash screen while checking auth state
-                      if (authState.isLoading) {
-                        return const SplashScreen();
-                      }
-                      
-                      // Show main app if authenticated, login screen if not
-                      return authState.isSignedIn 
-                        ? const MainTabView()
-                        : const LoginScreen();
-                    },
-                  ),
+            ),
           );
         },
       ),
