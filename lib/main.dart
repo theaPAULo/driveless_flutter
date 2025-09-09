@@ -207,12 +207,13 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
   bool _showInitialLoading = true;
   late AnimationController _transitionController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
     _transitionController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 700),
       vsync: this,
     );
     
@@ -221,7 +222,15 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
       end: 0.0,
     ).animate(CurvedAnimation(
       parent: _transitionController,
-      curve: Curves.easeInCubic,
+      curve: Curves.easeInOut,
+    ));
+    
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _transitionController,
+      curve: Curves.easeInOut,
     ));
   }
 
@@ -232,10 +241,10 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
   }
 
   void _onInitialLoadingComplete() async {
-    // Start fade out animation
+    // Start scale + fade out animation
     await _transitionController.forward();
     
-    // Switch to main app content after fade completes
+    // Switch to main app content after animation completes
     if (mounted) {
       setState(() {
         _showInitialLoading = false;
@@ -284,24 +293,33 @@ class _DriveLessAppState extends State<DriveLessApp> with TickerProviderStateMix
             darkTheme: AppThemes.darkTheme,
             themeMode: themeProvider.themeMode,
             
-            // ENHANCED: App routing with smooth transition from initial loading
+            // ENHANCED: App routing with smooth scale + fade transition
             home: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 600),
+              duration: const Duration(milliseconds: 500),
               transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
+                // Scale + Fade transition for incoming content
+                return Transform.scale(
+                  scale: Tween<double>(begin: 0.95, end: 1.0).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)
+                  ).value,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
                 );
               },
               child: _showInitialLoading
                   ? AnimatedBuilder(
                       key: const ValueKey('loading'),
-                      animation: _fadeAnimation,
+                      animation: Listenable.merge([_fadeAnimation, _scaleAnimation]),
                       builder: (context, child) {
-                        return Opacity(
-                          opacity: _fadeAnimation.value,
-                          child: InitialLoadingScreen(
-                            onLoadingComplete: _onInitialLoadingComplete,
+                        return Transform.scale(
+                          scale: _scaleAnimation.value,
+                          child: Opacity(
+                            opacity: _fadeAnimation.value,
+                            child: InitialLoadingScreen(
+                              onLoadingComplete: _onInitialLoadingComplete,
+                            ),
                           ),
                         );
                       },
