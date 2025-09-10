@@ -72,7 +72,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
     
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 350),
       vsync: this,
     );
     
@@ -87,7 +87,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     );
     
     _exitController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
@@ -116,7 +116,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     ));
 
     _titleSlide = Tween<Offset>(
-      begin: const Offset(0, 0.8),
+      begin: const Offset(0, 0.5),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _textController,
@@ -132,11 +132,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     ));
 
     _subtitleSlide = Tween<Offset>(
-      begin: const Offset(0, 0.5),
+      begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _textController,
-      curve: const Interval(0.4, 1.0, curve: Curves.easeOutCubic),
+      curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
     ));
 
     _featuresOpacity = Tween<double>(
@@ -173,10 +173,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     
     _exitOpacity = Tween<double>(
       begin: 1.0,
-      end: 0.0,
+      end: 0.1, // Don't fade out completely - leave some visibility
     ).animate(CurvedAnimation(
       parent: _exitController,
-      curve: Curves.easeInQuint, // More dramatic easing
+      curve: const Interval(0.5, 1.0, curve: Curves.easeInCubic), // Start fading later
     ));
     
     _exitScale = Tween<double>(
@@ -197,20 +197,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _startAnimationSequence() async {
-    // PRESERVED: Exact same timing as before
+    // Faster animation sequence for snappier feel
     _logoController.forward();
     
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 150));
     if (mounted) {
       _textController.forward();
     }
     
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
     if (mounted) {
       _featuresController.forward();
     }
     
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 150));
     if (mounted) {
       _buttonsController.forward();
     }
@@ -604,7 +604,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _navigateToMainApp();
   }
   
-  // Enhanced transition to main app with multiple effects
+  // Seamless transition with guaranteed overlap to prevent any flicker
   void _navigateToMainApp() async {
     if (_isExiting) return; // Prevent multiple taps
     
@@ -612,70 +612,52 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       _isExiting = true;
     });
     
-    // Start exit animation
-    await _exitController.forward();
-    
-    // Navigate after exit animation completes
+    // Start navigation immediately, don't wait for exit animation
     if (mounted) {
-      Navigator.of(context).pushReplacement(
+      await Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => const MainTabView(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Complex transition with multiple effects
+            // Conservative transition - ensure new screen is fully ready before showing
             return AnimatedBuilder(
               animation: animation,
               builder: (context, child) {
-                // Scale effect - starts small and grows
+                // Scale effect starts later to ensure screen is initialized
                 final scaleValue = Tween<double>(
-                  begin: 0.8,
+                  begin: 0.98,
                   end: 1.0,
                 ).animate(CurvedAnimation(
                   parent: animation,
-                  curve: const Interval(0.0, 0.8, curve: Curves.easeOutBack),
+                  curve: const Interval(0.3, 1.0, curve: Curves.easeOutCubic),
                 )).value;
                 
-                // Rotation effect - slight rotation for dynamism
-                final rotationValue = Tween<double>(
-                  begin: 0.05,
-                  end: 0.0,
+                // Fade starts even later to prevent any gaps
+                final fadeValue = Tween<double>(
+                  begin: 0.0,
+                  end: 1.0,
                 ).animate(CurvedAnimation(
                   parent: animation,
-                  curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-                )).value;
-                
-                // Slide effect - comes from slightly below
-                final slideValue = Tween<Offset>(
-                  begin: const Offset(0, 0.1),
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+                  curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
                 )).value;
                 
                 return Transform.scale(
                   scale: scaleValue,
-                  child: Transform.rotate(
-                    angle: rotationValue,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: slideValue,
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: FadeTransition(
-                        opacity: animation,
-                        child: child,
-                      ),
-                    ),
+                  child: Opacity(
+                    opacity: fadeValue,
+                    child: child,
                   ),
                 );
               },
               child: child,
             );
           },
-          transitionDuration: const Duration(milliseconds: 1000),
-          reverseTransitionDuration: const Duration(milliseconds: 600),
+          transitionDuration: const Duration(milliseconds: 900), // Longer to ensure overlap
+          reverseTransitionDuration: const Duration(milliseconds: 400),
         ),
       );
+      
+      // Start exit animation after navigation starts to ensure overlap
+      _exitController.forward();
     }
   }
 }
