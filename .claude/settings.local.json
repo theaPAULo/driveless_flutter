@@ -14,7 +14,12 @@
       "Bash(keytool:*)",
       "Bash(git rm:*)",
       "Bash(sudo rm:*)",
-      "Bash(xcodebuild:*)"
+      "Bash(xcodebuild:*)",
+      "Bash(xcode-select:*)",
+      "Read(//Applications/**)",
+      "Read(//Users/paulsoni/Downloads/**)",
+      "Bash(sudo xcode-select:*)",
+      "Bash(/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -version)"
     ],
     "deny": [],
     "ask": [],
